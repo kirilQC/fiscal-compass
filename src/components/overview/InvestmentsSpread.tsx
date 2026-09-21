@@ -30,14 +30,6 @@ export function InvestmentsSpread({ d }: { d: Dashboard }) {
         </div>
         <div>
           <p className={`${s.sub} ${s.subOffset}`}>Holdings</p>
-          {d.detectedTickers?.length ? (
-            <p className={s.empty}>
-              Positions detected from account activity: <b>{d.detectedTickers.join(", ")}</b>.
-            </p>
-          ) : null}
-          <p className={s.empty}>
-            Stripe shares the balance but not positions. Connect SnapTrade in <Link href="/settings">Settings</Link> for holdings, quantities and prices.
-          </p>
         </div>
       </section>
     );

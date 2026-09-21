@@ -26,7 +26,6 @@ export async function POST(request: Request) {
         .eq("institution", fc.institution_name)
         .eq("kind", kind)
         .eq("last4", fc.last4 ?? "")
-        .eq("is_active", true)
         .limit(1)
         .maybeSingle();
       let id: string;

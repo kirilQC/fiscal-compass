@@ -53,9 +53,6 @@ export function CreditSpread({ d }: { d: Dashboard }) {
               {money(c.balanceCents)}
               <small>owed on the card</small>
             </div>
-            <p className={s.empty}>
-              Chase doesn&rsquo;t share the credit limit over Stripe. <Link href="/settings">Add it in Settings</Link> and this turns into utilization — the number your credit score actually watches.
-            </p>
           </>
         )}
       </div>

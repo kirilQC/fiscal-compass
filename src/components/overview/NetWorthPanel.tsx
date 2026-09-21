@@ -236,7 +236,6 @@ export function NetWorthPanel({
           </svg>
         </div>
       )}
-      {historyNote ? <p className={s.note}>{historyNote}</p> : null}
     </section>
   );
 }

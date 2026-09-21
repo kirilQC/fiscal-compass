@@ -45,9 +45,6 @@ export default async function CreditPage() {
                   <h2 className={s.h2}>{name}</h2>
                   <p className={s.sub}>limit not set</p>
                   <div className={s.figs}><div><b className="num">{money(c.balanceCents)}</b><span>owed today</span></div></div>
-                  <p className={s.voice}>
-                    Chase doesn&apos;t share the credit limit over Stripe, so I can&apos;t compute utilization — the ratio your credit score actually watches. <Link href="/settings" className={s.link}>Add the limit in Settings</Link> and this page fills in: the ring, the 10% and 30% lines, and what to pay mid-cycle to stay under them.
-                  </p>
                 </div>
                 <div>
                   <p className={s.sub} style={{ marginTop: 46 }}>Balance · month end</p>

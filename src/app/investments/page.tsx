@@ -57,7 +57,7 @@ export default async function InvestmentsPage() {
               <h2 className={s.h2}>What Stripe sees</h2>
               <p className={s.sub}>the account balance and every transaction, refreshed each morning</p>
               <p className={s.voice}>
-                Fidelity reports <b>{money(d.investmentTotalCents)}</b> across {investAccounts.length === 1 ? "your account" : `${investAccounts.length} accounts`}. Stripe shares the balance but not positions. Connect SnapTrade in Settings for holdings, quantities and prices.
+                Fidelity reports <b>{money(d.investmentTotalCents)}</b> across {investAccounts.length === 1 ? "your account" : `${investAccounts.length} accounts`}.
               </p>
             </div>
             <div>
