@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createClient } from "./supabase/server";
+import { getSession } from "./session";
 import type { ChatTurn } from "./advisor";
 
 export interface Thread {
@@ -72,7 +72,7 @@ function supabaseStore(supabase: SupabaseClient, userId: string): Store {
   });
   return {
     async list() {
-      const { data } = await supabase.from("chat_threads").select("*").order("updated_at", { ascending: false }).limit(50);
+      const { data } = await supabase.from("chat_threads").select("*").eq("user_id", userId).order("updated_at", { ascending: false }).limit(50);
       return (data ?? []).map(mapThread);
     },
     async create() {
@@ -81,7 +81,7 @@ function supabaseStore(supabase: SupabaseClient, userId: string): Store {
       return mapThread(data);
     },
     async get(id) {
-      const { data } = await supabase.from("chat_threads").select("*").eq("id", id).maybeSingle();
+      const { data } = await supabase.from("chat_threads").select("*").eq("id", id).eq("user_id", userId).maybeSingle();
       return data ? mapThread(data) : null;
     },
     async remove(id) {
@@ -122,11 +122,7 @@ function titleFrom(text: string) {
 
 export async function getStore(): Promise<Store> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return memory;
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) {
-    if (process.env.SAMPLE_DATA === "1") return memory;
-    throw new Error("UNAUTHENTICATED");
-  }
-  return supabaseStore(supabase, data.user.id);
+  const session = await getSession();
+  if (!session) return memory;
+  return supabaseStore(session.supabase, session.userId);
 }

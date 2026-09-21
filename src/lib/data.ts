@@ -1,16 +1,15 @@
 import type { Dashboard } from "./types";
 import { sampleDashboard } from "./sample";
 import { buildDashboardFromDb } from "./data-db";
-import { createClient } from "./supabase/server";
+import { getSession } from "./session";
 
 // Single entry point for every page. Returns sample data when SAMPLE_DATA=1
 // or when the signed-in user has not linked any account yet.
 export async function getDashboard(): Promise<Dashboard> {
   if (process.env.SAMPLE_DATA === "1") return sampleDashboard;
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return sampleDashboard;
-  const { count } = await supabase.from("accounts").select("id", { count: "exact", head: true });
+  const session = await getSession();
+  if (!session) return sampleDashboard;
+  const { count } = await session.supabase.from("accounts").select("id", { count: "exact", head: true }).eq("user_id", session.userId);
   if (!count) return { ...sampleDashboard, isSample: true };
-  return buildDashboardFromDb(supabase, data.user.id);
+  return buildDashboardFromDb(session.supabase, session.userId);
 }

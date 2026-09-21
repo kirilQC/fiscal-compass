@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import type { ZodType } from "zod";
-import { createClient } from "./supabase/server";
+import { getSession, type Session } from "./session";
+import { OWNER_EMAIL } from "./owner";
 
-export async function withUser<T>(fn: (ctx: { supabase: Awaited<ReturnType<typeof createClient>>; userId: string; email?: string }) => Promise<T>) {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+export async function withUser<T>(fn: (ctx: Session & { email?: string }) => Promise<T>) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
   try {
-    const result = await fn({ supabase, userId: data.user.id, email: data.user.email });
+    const result = await fn({ ...session, email: OWNER_EMAIL });
     return result instanceof NextResponse ? result : NextResponse.json(result ?? { ok: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
