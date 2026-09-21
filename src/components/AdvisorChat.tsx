@@ -5,7 +5,7 @@ import type { Thread, Message } from "@/lib/threads";
 import { AdvisorMarkdown } from "./AdvisorMarkdown";
 import styles from "./AdvisorChat.module.css";
 
-type Props = { initialThreads: Thread[]; prompts: string[]; brief: string | null };
+type Props = { initialThreads: Thread[]; prompts: string[]; brief: string | null; initialQuery?: string | null };
 
 function relTime(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -16,9 +16,10 @@ function relTime(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function AdvisorChat({ initialThreads, prompts, brief }: Props) {
+export function AdvisorChat({ initialThreads, prompts, brief, initialQuery = null }: Props) {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
-  const [activeId, setActiveId] = useState<string | null>(initialThreads[0]?.id ?? null);
+  const [activeId, setActiveId] = useState<string | null>(initialQuery ? null : initialThreads[0]?.id ?? null);
+  const queryFired = useRef(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -148,6 +149,14 @@ export function AdvisorChat({ initialThreads, prompts, brief }: Props) {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }
+
+  useEffect(() => {
+    if (!initialQuery || queryFired.current) return;
+    queryFired.current = true;
+    send(initialQuery);
+    window.history.replaceState(null, "", "/advisor");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery]);
 
   const showChips = messages.filter((m) => m.role === "user").length === 0 && !busy;
 

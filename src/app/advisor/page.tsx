@@ -6,14 +6,15 @@ import { AdvisorChat } from "@/components/AdvisorChat";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdvisorPage() {
+export default async function AdvisorPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
   const d = await getDashboard();
   const store = await getStore();
   const threads = await store.list();
   return (
     <>
       <TopBar asOf={d.asOf} isSample={d.isSample} />
-      <AdvisorChat initialThreads={threads} prompts={suggestedPrompts(d)} brief={d.brief} />
+      <AdvisorChat initialThreads={threads} prompts={suggestedPrompts(d)} brief={d.brief} initialQuery={q?.trim() || null} />
     </>
   );
 }
