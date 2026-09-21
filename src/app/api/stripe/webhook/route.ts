@@ -3,8 +3,10 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncAccount } from "@/lib/sync";
+import { revalidateDashboard } from "@/lib/cache";
 
 export async function POST(request: Request) {
+  revalidateDashboard();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) return NextResponse.json({ error: "webhooks not configured" }, { status: 503 });
   const sig = request.headers.get("stripe-signature");

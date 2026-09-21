@@ -27,8 +27,8 @@ export function Onboarding() {
             <span className="faint">Brokerage balance</span>
           </div>
           <p className="muted">
-            Stripe returns the account balance. Individual positions come from Fidelity's Positions export, which
-            you can import on the Investments page once connected.
+            Stripe returns the account balance and activity. Individual positions need SnapTrade, which can be
+            connected in Settings later.
           </p>
           <LinkAccountButton label="Connect Fidelity" />
         </li>

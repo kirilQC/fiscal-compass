@@ -1,7 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { stripe, currentBalanceCents } from "./stripe";
+import { revalidateDashboard } from "./cache";
 import { categorize, categorizeMerchantsWithAI, cleanMerchant, normalizeMerchant, type Rule } from "./categorize";
+import { PAYROLL_RE } from "./settings";
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -29,6 +31,7 @@ export async function syncUser(admin: SupabaseClient, userId: string) {
       detail[a.id] = await syncStripeAccount(admin, a, (rules ?? []) as Rule[]);
     }
     detail.ai = await categorizeUnknownWithAI(admin, userId);
+    detail.paychecks = await detectPaychecks(admin, userId);
     await carryForwardHoldings(admin, userId);
   } catch (e) {
     status = "error";
@@ -37,6 +40,7 @@ export async function syncUser(admin: SupabaseClient, userId: string) {
   if (run?.id) {
     await admin.from("sync_runs").update({ finished_at: new Date().toISOString(), status, detail }).eq("id", run.id);
   }
+  revalidateDashboard();
   return { status, detail };
 }
 
@@ -46,7 +50,44 @@ export async function syncAccount(admin: SupabaseClient, accountId: string) {
   const { data: rules } = await admin.from("category_rules").select("merchant_pattern,category,is_transfer,is_income").eq("user_id", a.user_id);
   const result = await syncStripeAccount(admin, a as AccountRow, (rules ?? []) as Rule[]);
   await categorizeUnknownWithAI(admin, a.user_id);
+  await detectPaychecks(admin, a.user_id);
+  revalidateDashboard();
   return result;
+}
+
+// Payroll deposits become paychecks automatically; nothing is ever entered by hand.
+export async function detectPaychecks(admin: SupabaseClient, userId: string) {
+  const { data: deposits } = await admin
+    .from("transactions")
+    .select("id,posted_on,amount_cents,merchant")
+    .eq("user_id", userId)
+    .gt("amount_cents", 0)
+    .eq("status", "posted")
+    .limit(2000);
+  const payroll = (deposits ?? []).filter((t) => PAYROLL_RE.test(t.merchant));
+  if (!payroll.length) return { created: 0 };
+  const { data: existing } = await admin.from("paychecks").select("pay_date,net_cents,raw").eq("user_id", userId);
+  const seen = new Set<string>();
+  for (const p of existing ?? []) {
+    const raw = p.raw as { transaction_id?: string } | null;
+    if (raw?.transaction_id) seen.add(raw.transaction_id);
+    seen.add(`${p.pay_date}:${p.net_cents}`);
+  }
+  const rows = payroll
+    .filter((t) => !seen.has(t.id) && !seen.has(`${t.posted_on}:${t.amount_cents}`))
+    .map((t) => ({
+      user_id: userId,
+      pay_date: t.posted_on,
+      employer: t.merchant.replace(/\s*PPD ID:.*$/i, "").replace(/\s+/g, " ").trim(),
+      gross_cents: t.amount_cents,
+      net_cents: t.amount_cents,
+      raw: { transaction_id: t.id },
+    }));
+  if (rows.length) {
+    const { error } = await admin.from("paychecks").insert(rows);
+    if (error) throw new Error(error.message);
+  }
+  return { created: rows.length };
 }
 
 // Asks the model once per unknown merchant and persists the answer as a rule so it is never asked again.

@@ -91,7 +91,7 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
         {b.isSuggested ? <div style={{ marginTop: 46 }}><SaveSuggestedBudget budget={b} compact /></div> : <p className={`${s.sub} ${s.subOffset}`}>Categories · of budget</p>}
         {categories.map((c) => {
           const pct = c.limitCents ? (c.spentCents / c.limitCents) * 100 : 0;
-          const tone = toneOf(pct);
+          const tone = c.isCommitment ? "good" : toneOf(pct);
           const color = tone === "good" ? "var(--accent)" : toneVar[tone];
           return (
             <div className={s.cat} key={c.category}>

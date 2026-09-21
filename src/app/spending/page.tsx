@@ -23,7 +23,7 @@ export default async function SpendingPage() {
   const monthName = new Date(`${currentMonth}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
   const pacePct = b ? (b.dayOfMonth / b.daysInMonth) * 100 : 0;
   const under = b ? b.totalCents - b.projectedCents : 0;
-  const over = b?.categories.filter((c) => c.limitCents > 0 && c.spentCents > c.limitCents) ?? [];
+  const over = b?.categories.filter((c) => !c.isCommitment && c.limitCents > 0 && c.spentCents > c.limitCents) ?? [];
   const fullMonths = flows.slice(0, -1).filter((f) => f.spendCents > 0);
   const avgSpend = fullMonths.length ? Math.round(fullMonths.reduce((sum, f) => sum + f.spendCents, 0) / fullMonths.length) : 0;
   const paidMonths = fullMonths.filter((f) => f.incomeCents > 0);

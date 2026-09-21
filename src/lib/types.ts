@@ -35,6 +35,7 @@ export interface CategoryBudget {
   category: string;
   spentCents: number;
   limitCents: number;
+  isCommitment?: boolean; // e.g. tithe: spending above the limit is intentional, never "over"
 }
 
 export interface BudgetSummary {
@@ -112,6 +113,8 @@ export interface Dashboard {
   needsSetup?: boolean;
   loadError?: string;
   historyNote?: string | null;
+  detectedTickers?: string[];
+  settings?: { paycheckNetCents: number | null; payDays: number[]; tithePct: number; notes: string };
   netWorthCents: number;
   changeMtdCents: number;
   changeYtdCents: number;

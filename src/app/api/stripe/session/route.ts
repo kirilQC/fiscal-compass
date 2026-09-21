@@ -1,7 +1,9 @@
 import { withUser } from "@/lib/api";
 import { getOrCreateCustomer, stripe } from "@/lib/stripe";
+import { revalidateDashboard } from "@/lib/cache";
 
 export async function POST() {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId, email }) => {
     const customer = await getOrCreateCustomer(supabase, userId, email);
     const session = await stripe().financialConnections.sessions.create({

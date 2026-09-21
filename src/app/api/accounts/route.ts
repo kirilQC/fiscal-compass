@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { parseBody, withUser } from "@/lib/api";
 import { today } from "@/lib/sync";
+import { revalidateDashboard } from "@/lib/cache";
 
 const Kind = z.enum(["checking", "savings", "credit", "loan", "investment", "other"]);
 const Create = z.object({
@@ -39,6 +40,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Create);
     const { data, error } = await supabase
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Patch);
     const row = { ...toRow(b), ...(b.isActive !== undefined && { is_active: b.isActive }) };
@@ -74,6 +77,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const { id } = await parseBody(request, Del);
     const { error } = await supabase.from("accounts").delete().eq("id", id).eq("user_id", userId);

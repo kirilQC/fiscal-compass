@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseBody, withUser } from "@/lib/api";
 import { today } from "@/lib/sync";
 import { refreshInvestmentBalance } from "@/lib/holdings";
+import { revalidateDashboard } from "@/lib/cache";
 
 const Create = z.object({
   accountId: z.string().uuid(),
@@ -25,6 +26,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Create);
     const { data, error } = await supabase
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Patch);
     const { data: h, error: e0 } = await supabase.from("holdings").select("account_id").eq("id", b.id).eq("user_id", userId).single();
@@ -72,6 +75,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const { id } = await parseBody(request, Del);
     const { data: h } = await supabase.from("holdings").select("account_id").eq("id", id).eq("user_id", userId).maybeSingle();

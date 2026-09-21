@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { money, moneyExact } from "@/lib/format";
-import { call, toCents, todayIso } from "./api";
+import { moneyExact } from "@/lib/format";
+import { call, toCents } from "./api";
 import s from "./sections.module.css";
 
 type Msg = { busy: boolean; err?: string; msg?: string };
@@ -85,73 +85,76 @@ export function AddManualAccount() {
   );
 }
 
-type Paycheck = { id: string; pay_date: string; employer: string | null; gross_cents: number; net_cents: number; taxes_cents: number | null; retirement_cents: number | null };
+type Paycheck = { id: string; pay_date: string; employer: string | null; net_cents: number };
 
-export function Paychecks() {
-  const router = useRouter();
+export function DetectedPaychecks() {
   const [list, setList] = useState<Paycheck[] | null>(null);
-  const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [f, setF] = useState({ payDate: todayIso(), employer: "", gross: "", net: "", taxes: "", retirement: "" });
-  const [state, setState] = useState<Msg>({ busy: false });
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  useEffect(() => {
+    call<Paycheck[]>("/api/paychecks", "GET").then((r) => setList(r.ok ? r.data : []));
+  }, []);
+  return (
+    <div className={s.list}>
+      {list === null ? <p className={s.hint}>Loading…</p> : null}
+      {list?.length === 0 ? <p className={s.hint}>No payroll deposits found yet. They appear here automatically after the first sync that sees one.</p> : null}
+      {list?.slice(0, 8).map((p) => (
+        <div className={s.row} key={p.id}>
+          <span className={s.n}>{p.pay_date}<small>{p.employer ?? "Payroll"} · detected from checking</small></span>
+          <span className={`${s.v} num`}>{moneyExact(p.net_cents)}<small>net</small></span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  async function load() {
-    const r = await call<Paycheck[]>("/api/paychecks", "GET");
-    if (r.ok) setList(r.data); else { setList([]); setLoadErr(r.error); }
-  }
-  useEffect(() => { load(); }, []);
+type Settings = { paycheckNetCents: number | null; payDays: number[]; tithePct: number; notes: string };
+
+export function IncomeSettings({ initial }: { initial: Settings }) {
+  const router = useRouter();
+  const [f, setF] = useState({
+    paycheck: initial.paycheckNetCents ? String(initial.paycheckNetCents / 100) : "",
+    payDays: initial.payDays.join(", "),
+    tithe: String(initial.tithePct),
+    notes: initial.notes,
+  });
+  const [state, setState] = useState<Msg>({ busy: false });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const gross = toCents(f.gross), net = toCents(f.net);
-    if (!Number.isFinite(gross) || !Number.isFinite(net) || net <= 0) return setState({ busy: false, err: "Gross and net pay are required, in dollars." });
+    const payDays = f.payDays.split(/[,\s]+/).filter(Boolean).map(Number);
+    if (payDays.some((d) => !Number.isInteger(d) || d < 1 || d > 31)) return setState({ busy: false, err: "Pay days are days of the month, like 1, 15." });
+    const tithe = Number(f.tithe);
+    if (!Number.isFinite(tithe) || tithe < 0 || tithe > 100) return setState({ busy: false, err: "Tithe is a percentage of income." });
+    const paycheck = f.paycheck.trim() ? toCents(f.paycheck) : null;
+    if (paycheck !== null && !Number.isFinite(paycheck)) return setState({ busy: false, err: "Paycheck must be a dollar amount." });
     setState({ busy: true });
-    const r = await call("/api/paychecks", "POST", {
-      payDate: f.payDate,
-      employer: f.employer.trim() || undefined,
-      grossCents: gross,
-      netCents: net,
-      taxesCents: f.taxes ? toCents(f.taxes) : null,
-      retirementCents: f.retirement ? toCents(f.retirement) : null,
-    });
-    if (r.ok) { setState({ busy: false, msg: "Paycheck saved." }); setF({ ...f, gross: "", net: "", taxes: "", retirement: "" }); load(); router.refresh(); }
-    else setState({ busy: false, err: r.error });
-  }
-
-  async function remove(id: string) {
-    const r = await call("/api/paychecks", "DELETE", { id });
-    if (r.ok) { load(); router.refresh(); } else setState({ busy: false, err: r.error });
+    const r = await call("/api/settings", "PUT", { paycheckNetCents: paycheck, payDays, tithePct: tithe, notes: f.notes });
+    if (r.ok) { setState({ busy: false, msg: "Saved." }); router.refresh(); } else setState({ busy: false, err: r.error });
   }
 
   return (
-    <div className={s.stack}>
-      <div className={s.list}>
-        {list === null ? <p className={s.hint}>Loading…</p> : null}
-        {list?.length === 0 ? <p className={s.hint}>{loadErr ?? "No paychecks yet. Enter each stub and the savings rate becomes real."}</p> : null}
-        {list?.slice(0, 8).map((p) => (
-          <div className={s.row} key={p.id}>
-            <span className={s.n}>{p.pay_date}<small>{p.employer ?? "Payroll"} · gross {money(p.gross_cents)}{p.retirement_cents ? ` · 401k ${money(p.retirement_cents)}` : ""}</small></span>
-            <span className={`${s.v} num`}>{moneyExact(p.net_cents)}<small>net</small></span>
-            <button type="button" className={s.link} onClick={() => remove(p.id)}>Remove</button>
-          </div>
-        ))}
+    <form className={s.form} onSubmit={submit}>
+      <div className={s.formRow}>
+        <div className={s.field}>
+          <label htmlFor="st-pay">Take-home per paycheck ($)</label>
+          <input id="st-pay" className={`${s.input} num`} inputMode="decimal" value={f.paycheck} onChange={(e) => setF({ ...f, paycheck: e.target.value })} placeholder="2859.49" />
+        </div>
+        <div className={s.field}>
+          <label htmlFor="st-days">Pay days of the month</label>
+          <input id="st-days" className={`${s.input} num`} value={f.payDays} onChange={(e) => setF({ ...f, payDays: e.target.value })} placeholder="1, 15" />
+        </div>
+        <div className={s.field}>
+          <label htmlFor="st-tithe">Tithe (% of income)</label>
+          <input id="st-tithe" className={`${s.input} num`} inputMode="decimal" value={f.tithe} onChange={(e) => setF({ ...f, tithe: e.target.value })} />
+        </div>
       </div>
-      <form className={s.form} onSubmit={submit}>
-        <div className={s.formRow}>
-          <div className={s.field}><label htmlFor="p-date">Pay date</label><input id="p-date" type="date" className={`${s.input} num`} value={f.payDate} onChange={set("payDate")} /></div>
-          <div className={s.field}><label htmlFor="p-emp">Employer</label><input id="p-emp" className={s.input} value={f.employer} onChange={set("employer")} placeholder="QC Growth" /></div>
-        </div>
-        <div className={s.formRow}>
-          <div className={s.field}><label htmlFor="p-gross">Gross ($)</label><input id="p-gross" className={`${s.input} num`} inputMode="decimal" value={f.gross} onChange={set("gross")} /></div>
-          <div className={s.field}><label htmlFor="p-net">Net ($)</label><input id="p-net" className={`${s.input} num`} inputMode="decimal" value={f.net} onChange={set("net")} /></div>
-          <div className={s.field}><label htmlFor="p-tax">Taxes ($)</label><input id="p-tax" className={`${s.input} num`} inputMode="decimal" value={f.taxes} onChange={set("taxes")} /></div>
-          <div className={s.field}><label htmlFor="p-ret">Retirement ($)</label><input id="p-ret" className={`${s.input} num`} inputMode="decimal" value={f.retirement} onChange={set("retirement")} /></div>
-        </div>
-        <div className={s.actions}><button type="submit" className={s.button} disabled={state.busy}>{state.busy ? "Saving…" : "Add paycheck"}</button></div>
-        {state.err ? <p className={s.err}>{state.err}</p> : null}
-        {state.msg ? <p className={s.ok}>{state.msg}</p> : null}
-      </form>
-    </div>
+      <div className={s.field}>
+        <label htmlFor="st-notes">Standing notes for the advisor</label>
+        <textarea id="st-notes" className={`${s.input} ${s.textarea}`} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Anything the advisor should always know — commitments, plans, how you think about money." />
+      </div>
+      <div className={s.actions}><button type="submit" className={s.button} disabled={state.busy}>{state.busy ? "Saving…" : "Save"}</button></div>
+      {state.err ? <p className={s.err}>{state.err}</p> : null}
+      {state.msg ? <p className={s.ok}>{state.msg}</p> : null}
+    </form>
   );
 }
 

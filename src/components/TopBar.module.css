@@ -24,8 +24,15 @@
 }
 .brand em { font-style: italic; color: var(--accent); }
 .nav { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13.5px; color: var(--ink2); }
-.nav a { padding-block: 4px; border-bottom: 1px solid transparent; }
-.nav a:hover { color: var(--ink); }
+.nav a, .nav span, .settings {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-block: 4px;
+  border-bottom: 1px solid transparent;
+}
+.nav svg, .settings svg { flex: none; position: relative; top: -1px; }
+.nav a:hover, .settings:hover { color: var(--ink); }
 .active { color: var(--ink) !important; border-bottom-color: var(--accent) !important; }
 .meta { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 12.5px; }
 .sample {
@@ -33,9 +40,26 @@
   color: var(--warn); border: 1px solid currentColor; padding: 1px 7px; border-radius: 2px;
 }
 .settings { color: var(--ink2); }
-.settings:hover { color: var(--ink); }
 @media (max-width: 720px) {
   .meta { display: none; }
-  .nav { gap: 14px; font-size: 13px; }
+  .nav { gap: 18px; }
+  .nav a { padding: 6px 2px; }
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 .error { padding-block: 8px; font-size: 13px; color: var(--crit); border-top: 1px solid var(--rule); }
+
+/* Route loading skeleton */
+.skeleton { padding-block: 56px; display: grid; gap: 28px; }
+.skelEyebrow { width: 72px; height: 10px; background: var(--rule); }
+.skelHero { width: min(520px, 70%); height: 96px; background: var(--rule); opacity: 0.55; }
+.skelLine { height: 1px; background: var(--rule); }
+.skelRow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
+.skelRow > span { display: block; height: 120px; background: var(--rule); opacity: 0.35; }
+@media (max-width: 760px) { .skelRow { grid-template-columns: 1fr; } }

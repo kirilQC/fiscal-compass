@@ -3,10 +3,12 @@ import { parseBody, withUser } from "@/lib/api";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAccountKind, prettyAccountName, stripe } from "@/lib/stripe";
 import { syncAccount } from "@/lib/sync";
+import { revalidateDashboard } from "@/lib/cache";
 
 const Body = z.object({ sessionId: z.string().min(1) });
 
 export async function POST(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const { sessionId } = await parseBody(request, Body);
     const s = stripe();

@@ -12,6 +12,7 @@ import type {
   SeriesPoint,
   Transaction,
 } from "./types";
+import { getUserSettings } from "./settings";
 
 interface AccountRow {
   id: string;
@@ -48,7 +49,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const monthStart = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
   const since6m = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)));
 
-  const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ] = await Promise.all([
+  const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings] = await Promise.all([
     supabase.from("accounts").select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", since5y).order("as_of"),
     supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note,status").eq("user_id", userId).gte("posted_on", since12m).order("posted_on", { ascending: false }).limit(5000),
@@ -58,6 +59,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     supabase.from("budgets").select("id,month,total_cents,budget_categories(category,limit_cents)").eq("user_id", userId).eq("month", monthStart).maybeSingle(),
     supabase.from("paychecks").select("pay_date,net_cents").eq("user_id", userId).gte("pay_date", since6m),
     supabase.from("advisor_notes").select("kind,body,anchor,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
+    getUserSettings(supabase, userId),
   ]);
 
   const accounts = (accountsQ.data ?? []) as AccountRow[];
@@ -213,11 +215,17 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
       const total = Math.ceil(past.reduce((s, t) => s - t.amount_cents, 0) / monthsWithData / 10000) * 10000;
       const spentByCat = new Map<string, number>();
       for (const t of thisMonthSpend) spentByCat.set(t.category, (spentByCat.get(t.category) ?? 0) - t.amount_cents);
-      const categories = [...byCat.entries()].map(([category, sum]) => ({
-        category,
-        limitCents: Math.max(1000, Math.round(sum / monthsWithData / 1000) * 1000),
-        spentCents: spentByCat.get(category) ?? 0,
-      }));
+      const pastIncome = txns.filter((t) => t.is_income && months.includes(ym(t.posted_on))).reduce((s, t) => s + t.amount_cents, 0);
+      const pastPay = paychecks.filter((p) => months.includes(ym(p.pay_date))).reduce((s, p) => s + p.net_cents, 0);
+      const avgIncome = (pastPay || pastIncome) / monthsWithData;
+      const titheCents = Math.round((avgIncome * settings.tithePct) / 100 / 1000) * 1000;
+      const categories = [...byCat.entries()].map(([category, sum]) => {
+        const avg = Math.max(1000, Math.round(sum / monthsWithData / 1000) * 1000);
+        return { category, limitCents: category === "Giving" ? Math.max(avg, titheCents) : avg, spentCents: spentByCat.get(category) ?? 0 };
+      });
+      if (titheCents > 0 && !categories.some((c) => c.category === "Giving")) {
+        categories.push({ category: "Giving", limitCents: titheCents, spentCents: spentByCat.get("Giving") ?? 0 });
+      }
       for (const [cat, spent] of spentByCat) {
         if (!categories.some((c) => c.category === cat)) categories.push({ category: cat, limitCents: 0, spentCents: spent });
       }
@@ -230,7 +238,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
         dayOfMonth,
         daysInMonth,
         projectedCents: Math.round((spentCents / dayOfMonth) * daysInMonth),
-        categories: categories.sort((a, b) => b.spentCents - a.spentCents),
+        categories: markCommitments(categories.sort((a, b) => b.spentCents - a.spentCents), settings.tithePct),
         isSuggested: true,
       };
     }
@@ -255,7 +263,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
       dayOfMonth,
       daysInMonth,
       projectedCents: Math.round((spentCents / dayOfMonth) * daysInMonth),
-      categories: categories.sort((a, b) => b.spentCents - a.spentCents),
+      categories: markCommitments(categories.sort((a, b) => b.spentCents - a.spentCents), settings.tithePct),
     };
   }
 
@@ -354,6 +362,16 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     isIncome: t.is_income,
   }));
 
+  const tickerCount = new Map<string, number>();
+  if (!holdingRows.length) {
+    for (const t of txns) {
+      if (kindOf.get(t.account_id) !== "investment") continue;
+      const m = t.merchant.match(/\(([A-Z]{1,5})\)/);
+      if (m) tickerCount.set(m[1], (tickerCount.get(m[1]) ?? 0) + 1);
+    }
+  }
+  const detectedTickers = [...tickerCount.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
+
   const annotations: Annotation[] = notes
     .filter((n) => n.kind === "annotation" && n.anchor?.series && n.anchor?.date)
     .map((n) => ({ series: n.anchor!.series!, date: n.anchor!.date!, text: n.body }));
@@ -382,6 +400,8 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     recentTransactions,
     annotations,
     brief,
+    detectedTickers,
+    settings,
     historyNote: reconstructedBefore
       ? `History before ${reconstructedBefore} is reconstructed from transactions; market movement in investments is not captured until daily snapshots accumulate.`
       : null,
@@ -406,4 +426,8 @@ function amortize(balanceCents: number, apr: number, paymentCents: number, start
 
 function monthsBetween(a: Date, b: Date) {
   return (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth());
+}
+
+function markCommitments<T extends { category: string }>(categories: T[], tithePct: number): (T & { isCommitment?: boolean })[] {
+  return categories.map((c) => (c.category === "Giving" && tithePct > 0 ? { ...c, isCommitment: true } : c));
 }

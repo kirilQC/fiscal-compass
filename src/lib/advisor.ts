@@ -29,6 +29,15 @@ export function buildContext(d: Dashboard): string {
   }
   if (d.savingsRatePct != null) L.push(`Savings rate: ${d.savingsRatePct}%`);
 
+  const st = d.settings;
+  if (st) {
+    L.push("\nStanding commitments and context:");
+    L.push(`- Tithe: ${st.tithePct}% of income to church, a fixed commitment (sometimes more). Never treat Giving as overspending or suggest cutting it.`);
+    if (st.paycheckNetCents) L.push(`- Expected take-home per paycheck: ${money(st.paycheckNetCents)}, landing on day(s) ${st.payDays.join(" and ")} of each month (about ${money(st.paycheckNetCents * st.payDays.length)}/month).`);
+    else L.push(`- Paychecks land on day(s) ${st.payDays.join(" and ")} of each month (Gusto payroll deposits are detected automatically).`);
+    if (st.notes.trim()) L.push(`- Notes from Kiril: ${st.notes.trim()}`);
+  }
+
   L.push("\nAccounts:");
   for (const a of d.accounts) {
     const extra: string[] = [];
@@ -51,8 +60,8 @@ export function buildContext(d: Dashboard): string {
     const b = d.budget;
     L.push(`\nBudget ${b.month}: ${money(b.totalCents)} total, spent ${money(b.spentCents)} (${b.pctUsed}%) on day ${b.dayOfMonth} of ${b.daysInMonth}; ${money(b.remainingCents)} left; projected month-end ${money(b.projectedCents)}`);
     for (const c of b.categories) {
-      const over = c.spentCents > c.limitCents;
-      L.push(`- ${c.category}: ${money(c.spentCents)} / ${money(c.limitCents)}${over ? ` — OVER by ${money(c.spentCents - c.limitCents)}` : c.spentCents / c.limitCents > 0.9 ? " — near limit" : ""}`);
+      const over = c.spentCents > c.limitCents && c.category !== "Giving";
+      L.push(`- ${c.category}: ${money(c.spentCents)} / ${money(c.limitCents)}${c.category === "Giving" ? " — tithe, a commitment" : over ? ` — OVER by ${money(c.spentCents - c.limitCents)}` : c.limitCents && c.spentCents / c.limitCents > 0.9 ? " — near limit" : ""}`);
     }
   } else {
     L.push("\nBudget: none set.");

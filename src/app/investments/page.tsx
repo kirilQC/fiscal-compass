@@ -4,7 +4,6 @@ import { Onboarding } from "@/components/Onboarding";
 import { LineChart, Ring } from "@/components/charts";
 import { money, monthLabel, pct } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
-import { AddHolding, ImportPositions } from "@/components/sections/HoldingsForms";
 import o from "@/components/overview/overview.module.css";
 import s from "@/components/sections/sections.module.css";
 import { prettyName } from "@/components/sections/names";
@@ -43,7 +42,7 @@ export default async function InvestmentsPage() {
       <main className="wrap">
         <PageHead
           title="Investments"
-          lede={`${investAccounts.map((a) => `${a.institution} ${prettyName(a.name)}`).join(", ") || "Brokerage"} · ${noHoldings ? "no positions imported yet" : `${d.holdings.length} holdings`}`}
+          lede={`${investAccounts.map((a) => `${a.institution} ${prettyName(a.name)}`).join(", ") || "Brokerage"} · ${noHoldings ? "positions not connected yet" : `${d.holdings.length} holdings`}`}
           figs={[
             { value: money(d.investmentTotalCents), label: "total value" },
             ...(mtdCents !== null ? [{ value: `${mtdCents >= 0 ? "+" : "−"}${money(Math.abs(mtdCents))}`, label: `this month · ${pct(change ?? 0)}`, tone: mtdCents >= 0 ? "good" : "crit" }]
@@ -56,15 +55,21 @@ export default async function InvestmentsPage() {
           <section className={`${s.section} ${s.two}`}>
             <div>
               <h2 className={s.h2}>What Stripe sees</h2>
-              <p className={s.sub}>the account balance, refreshed each morning</p>
+              <p className={s.sub}>the account balance and every transaction, refreshed each morning</p>
               <p className={s.voice}>
-                Fidelity reports <b>{money(d.investmentTotalCents)}</b> across {investAccounts.length === 1 ? "your account" : `${investAccounts.length} accounts`}, but not what it&apos;s made of. Export <b>Positions</b> from Fidelity (Accounts &amp; Trade → Positions → Download) and drop the CSV here — each holding gets its own chart, and I can start talking about allocation and drift.
+                Fidelity reports <b>{money(d.investmentTotalCents)}</b> across {investAccounts.length === 1 ? "your account" : `${investAccounts.length} accounts`}. Stripe shares the balance but not positions. Connect SnapTrade in Settings for holdings, quantities and prices.
               </p>
             </div>
             <div>
-              <h2 className={s.h2}>Import Fidelity positions</h2>
-              <p className={s.sub}>Symbol, Description, Quantity, Last Price, Current Value</p>
-              {investAccounts.length ? <ImportPositions accounts={investAccounts} /> : <p className={s.hint}>Link or add an investment account in Settings first.</p>}
+              <h2 className={s.h2}>Positions detected from activity</h2>
+              <p className={s.sub}>tickers named in dividends, trades and sweeps</p>
+              {d.detectedTickers?.length ? (
+                <div className={s.list}>
+                  {d.detectedTickers.map((t) => (
+                    <div className={s.row} key={t}><span className={s.n}>{t}<small>{t === "SPAXX" ? "Fidelity Government Money Market · core cash" : "seen in account activity"}</small></span></div>
+                  ))}
+                </div>
+              ) : <p className={s.hint}>No tickers named in the activity yet.</p>}
             </div>
           </section>
         ) : null}
@@ -172,19 +177,6 @@ export default async function InvestmentsPage() {
           })}
         </section>
         )}
-
-        <section className={`${s.section} ${s.two}`}>
-          <div>
-            <h2 className={s.h2}>{noHoldings ? "Re-import later" : "Import Fidelity positions"}</h2>
-            <p className={s.sub}>Stripe links the Fidelity balance; holdings come from the Positions export</p>
-            {investAccounts.length ? <ImportPositions accounts={investAccounts} /> : <p className={s.hint}>Link or add an investment account in Settings first.</p>}
-          </div>
-          <div>
-            <h2 className={s.h2}>Add a holding</h2>
-            <p className={s.sub}>for anything not in the export</p>
-            {investAccounts.length ? <AddHolding accounts={investAccounts} /> : <p className={s.hint}>Link or add an investment account in Settings first.</p>}
-          </div>
-        </section>
 
         <PageFoot isSample={d.isSample} />
       </main>

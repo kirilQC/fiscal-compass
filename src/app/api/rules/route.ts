@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBody, withUser } from "@/lib/api";
+import { revalidateDashboard } from "@/lib/cache";
 
 const Create = z.object({
   merchantPattern: z.string().min(1),
@@ -20,6 +21,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Create);
     const { data, error } = await supabase
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Patch);
     const row = {
@@ -59,6 +62,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const { id } = await parseBody(request, Del);
     const { error } = await supabase.from("category_rules").delete().eq("id", id).eq("user_id", userId);

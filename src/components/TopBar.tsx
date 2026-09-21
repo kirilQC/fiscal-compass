@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./TopBar.module.css";
+import { AdvisorIcon, CreditIcon, GoalsIcon, InvestmentsIcon, OverviewIcon, SettingsIcon, SpendingIcon } from "./NavIcons";
 
 const NAV = [
-  { href: "/", label: "Overview" },
-  { href: "/investments", label: "Investments" },
-  { href: "/credit", label: "Credit" },
-  { href: "/spending", label: "Spending" },
-  { href: "/goals", label: "Goals" },
-  { href: "/advisor", label: "Advisor" },
+  { href: "/", label: "Overview", Icon: OverviewIcon },
+  { href: "/investments", label: "Investments", Icon: InvestmentsIcon },
+  { href: "/credit", label: "Credit", Icon: CreditIcon },
+  { href: "/spending", label: "Spending", Icon: SpendingIcon },
+  { href: "/goals", label: "Goals", Icon: GoalsIcon },
+  { href: "/advisor", label: "Advisor", Icon: AdvisorIcon },
 ];
 
 export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: boolean; loadError?: string }) {
@@ -22,11 +23,12 @@ export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: 
           Fiscal <em>Compass</em>
         </Link>
         <nav className={styles.nav} aria-label="Primary">
-          {NAV.map((n) => {
-            const active = n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
+          {NAV.map(({ href, label, Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
-              <Link key={n.href} href={n.href} className={active ? styles.active : undefined} aria-current={active ? "page" : undefined}>
-                {n.label}
+              <Link key={href} href={href} className={active ? styles.active : undefined} aria-current={active ? "page" : undefined} aria-label={label}>
+                <Icon />
+                <span className={styles.label}>{label}</span>
               </Link>
             );
           })}
@@ -34,10 +36,33 @@ export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: 
         <div className={styles.meta}>
           {isSample ? <span className={styles.sample}>Sample data</span> : null}
           <span className="faint">As of {asOf}</span>
-          <Link href="/settings" className={styles.settings}>Settings</Link>
+          <Link href="/settings" className={`${styles.settings} ${pathname.startsWith("/settings") ? styles.active : ""}`} aria-label="Settings">
+            <SettingsIcon />
+            <span className={styles.label}>Settings</span>
+          </Link>
         </div>
       </div>
       {loadError ? <div className={`wrap ${styles.error}`}>Couldn&apos;t build your dashboard from live data — showing sample numbers. {loadError}</div> : null}
+    </header>
+  );
+}
+
+export function TopBarSkeleton() {
+  return (
+    <header className={styles.bar}>
+      <div className={`wrap ${styles.inner}`}>
+        <span className={styles.brand}>
+          Fiscal <em>Compass</em>
+        </span>
+        <nav className={styles.nav} aria-hidden="true">
+          {NAV.map(({ href, label, Icon }) => (
+            <span key={href}>
+              <Icon />
+              <span className={styles.label}>{label}</span>
+            </span>
+          ))}
+        </nav>
+      </div>
     </header>
   );
 }

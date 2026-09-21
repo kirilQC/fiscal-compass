@@ -11,10 +11,38 @@ import s from "./sections.module.css";
 const KIND_LABEL: Record<string, string> = { checking: "Checking", savings: "Savings", credit: "Credit card", loan: "Loan", investment: "Investment", other: "Other" };
 const KINDS = Object.entries(KIND_LABEL);
 
-export function AccountsEditor({ accounts, asOf }: { accounts: Account[]; asOf: string }) {
+export function AccountsEditor({ accounts, asOf, hidden = [] }: { accounts: Account[]; asOf: string; hidden?: Account[] }) {
   return (
     <div className={s.list}>
       {accounts.map((a) => <AccountRow key={a.id} a={a} asOf={asOf} />)}
+      {hidden.length ? <HiddenRow hidden={hidden} /> : null}
+    </div>
+  );
+}
+
+function HiddenRow({ hidden }: { hidden: Account[] }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  async function show(a: Account) {
+    setBusy(a.id);
+    const r = await call("/api/accounts", "PATCH", { id: a.id, isActive: true });
+    setBusy(null);
+    if (r.ok) router.refresh();
+  }
+  return (
+    <div className={s.row}>
+      <span className={s.n}>
+        <button type="button" className={s.link} onClick={() => setOpen(!open)}>
+          {hidden.length} hidden account{hidden.length === 1 ? "" : "s"} {open ? "▴" : "▾"}
+        </button>
+        {open ? hidden.map((a) => (
+          <small key={a.id}>
+            {a.institution} {prettyName(a.name)} · {money(a.balanceCents)}{" "}
+            <button type="button" className={s.link} onClick={() => show(a)} disabled={busy === a.id}>{busy === a.id ? "…" : "Show"}</button>
+          </small>
+        )) : <small>not counted toward net worth</small>}
+      </span>
     </div>
   );
 }

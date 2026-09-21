@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBody, withUser } from "@/lib/api";
+import { revalidateDashboard } from "@/lib/cache";
 
 const Body = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
@@ -20,6 +21,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const b = await parseBody(request, Body);
     const { data, error } = await supabase
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
 export const PATCH = POST;
 
 export async function DELETE(request: Request) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const { month } = await parseBody(request, Del);
     const { error } = await supabase.from("budgets").delete().eq("user_id", userId).eq("month", `${month}-01`);

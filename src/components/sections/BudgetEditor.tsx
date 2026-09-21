@@ -59,13 +59,13 @@ export function BudgetEditor({ budget }: { budget: BudgetSummary }) {
         const spent = row?.spentCents ?? 0;
         const limit = editing ? toCents(limits[c] || "0") : row?.limitCents ?? 0;
         const pct = limit ? (spent / limit) * 100 : 0;
-        const tone = toneOf(pct);
+        const tone = row?.isCommitment ? "accent" : toneOf(pct);
         return (
           <div className={s.catRow} key={c}>
             <span>
               <i style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: toneVar[tone], marginRight: 8, verticalAlign: "middle" }} />
               {c}
-              {pct >= 100 ? <span className="crit" style={{ fontSize: 11, letterSpacing: "0.1em", marginLeft: 8 }}>OVER</span> : null}
+              {row?.isCommitment ? <span className="faint" style={{ fontSize: 11, letterSpacing: "0.1em", marginLeft: 8 }}>COMMITMENT</span> : pct >= 100 ? <span className="crit" style={{ fontSize: 11, letterSpacing: "0.1em", marginLeft: 8 }}>OVER</span> : null}
             </span>
             <div className={s.catTrack}>
               <i style={{ width: `${Math.min(100, pct)}%`, background: tone === "good" ? "var(--accent)" : toneVar[tone] }} />

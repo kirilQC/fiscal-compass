@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseBody, withUser } from "@/lib/api";
+import { revalidateDashboard } from "@/lib/cache";
 
 const Body = z.object({
   category: z.string().min(1).optional(),
@@ -8,6 +9,7 @@ const Body = z.object({
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  revalidateDashboard();
   return withUser(async ({ supabase, userId }) => {
     const { id } = await params;
     const b = await parseBody(request, Body);

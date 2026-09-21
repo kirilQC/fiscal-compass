@@ -30,8 +30,13 @@ export function InvestmentsSpread({ d }: { d: Dashboard }) {
         </div>
         <div>
           <p className={`${s.sub} ${s.subOffset}`}>Holdings</p>
+          {d.detectedTickers?.length ? (
+            <p className={s.empty}>
+              Positions detected from account activity: <b>{d.detectedTickers.join(", ")}</b>.
+            </p>
+          ) : null}
           <p className={s.empty}>
-            Stripe reports the balance, not what&rsquo;s inside it. <Link href="/investments">Import your Fidelity positions</Link> and each holding gets its own chart here — allocation, drift from target, and month-over-month change.
+            Stripe shares the balance but not positions. Connect SnapTrade in <Link href="/settings">Settings</Link> for holdings, quantities and prices.
           </p>
         </div>
       </section>
