@@ -1,5 +1,6 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
+import { Onboarding } from "@/components/Onboarding";
 import { LineChart, PayoffChart, Track, toneVar } from "@/components/charts";
 import { money } from "@/lib/format";
 import type { Goal, SeriesPoint } from "@/lib/types";
@@ -24,6 +25,7 @@ function projection(g: Goal, asOf: string): SeriesPoint[] {
 
 export default async function GoalsPage() {
   const d = await getDashboard();
+  if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const totalTarget = d.goals.reduce((sum, g) => sum + g.targetCents, 0);
   const totalSaved = d.goals.reduce((sum, g) => sum + g.savedCents, 0);
   const monthlyPlan = d.goals.reduce((sum, g) => sum + (g.monthlyPlanCents ?? 0), 0);

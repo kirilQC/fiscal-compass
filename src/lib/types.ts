@@ -108,6 +108,7 @@ export interface Annotation {
 export interface Dashboard {
   asOf: string;
   isSample: boolean;
+  needsSetup?: boolean;
   netWorthCents: number;
   changeMtdCents: number;
   changeYtdCents: number;

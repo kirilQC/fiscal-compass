@@ -1,5 +1,6 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
+import { Onboarding } from "@/components/Onboarding";
 import { LineChart, Ring } from "@/components/charts";
 import { money, monthLabel, pct } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
@@ -13,6 +14,7 @@ const opacityAt = (i: number) => Math.max(0.32, 1 - i * 0.22);
 
 export default async function InvestmentsPage() {
   const d = await getDashboard();
+  if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const investAccounts = d.accounts.filter((a) => a.kind === "investment");
   const change = d.investmentChangeMtdPct;
   const hasTargets = d.holdings.some((h) => h.targetPct !== null);

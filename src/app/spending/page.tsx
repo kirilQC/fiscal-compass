@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
+import { Onboarding } from "@/components/Onboarding";
 import { BarChart, Track } from "@/components/charts";
 import { money, moneyExact, monthLabel } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
@@ -13,6 +14,7 @@ const longDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleString("en
 
 export default async function SpendingPage() {
   const d = await getDashboard();
+  if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const b = d.budget;
   const flows = d.monthlyFlow;
   const categories = b?.categories.map((c) => c.category) ?? ["Groceries", "Dining", "Transport", "Shopping", "Subscriptions", "Other"];

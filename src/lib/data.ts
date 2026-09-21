@@ -10,6 +10,6 @@ export async function getDashboard(): Promise<Dashboard> {
   const session = await getSession();
   if (!session) return sampleDashboard;
   const { count } = await session.supabase.from("accounts").select("id", { count: "exact", head: true }).eq("user_id", session.userId);
-  if (!count) return { ...sampleDashboard, isSample: true };
+  if (!count) return { ...sampleDashboard, isSample: true, needsSetup: true };
   return buildDashboardFromDb(session.supabase, session.userId);
 }

@@ -1,0 +1,12 @@
+.page { padding-block: clamp(48px, 9vh, 120px) 80px; max-width: 760px; }
+.title { font-family: var(--serif); font-weight: 300; font-size: clamp(48px, 8vw, 96px); line-height: 0.95; margin: 8px 0 24px; letter-spacing: -0.01em; text-wrap: balance; }
+.title em { font-style: italic; color: var(--accent); }
+.lede { max-width: 60ch; color: var(--ink2); margin: 0 0 48px; font-size: 16px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.steps li { display: grid; gap: 10px; padding-block: 28px; border-top: 1px solid var(--rule); }
+.steps li:last-child { border-bottom: 1px solid var(--rule); }
+.steps p { margin: 0; max-width: 60ch; }
+.stepHead { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; }
+.stepName { font-family: var(--serif); font-size: 30px; font-weight: 400; }
+.link { color: var(--accent); font-size: 13.5px; letter-spacing: 0.02em; }
+.note { margin: 28px 0 0; font-size: 13.5px; }

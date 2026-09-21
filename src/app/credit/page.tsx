@@ -1,5 +1,6 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
+import { Onboarding } from "@/components/Onboarding";
 import { BarChart, LineChart, Ring, Track } from "@/components/charts";
 import { dateLabel, money, moneyExact, monthLabel } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
@@ -7,6 +8,7 @@ import s from "@/components/sections/sections.module.css";
 
 export default async function CreditPage() {
   const d = await getDashboard();
+  if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const totalOwed = d.credit.reduce((sum, c) => sum + c.balanceCents, 0);
   const totalLimit = d.credit.reduce((sum, c) => sum + c.limitCents, 0);
   const overall = totalLimit ? Math.round((totalOwed / totalLimit) * 100) : 0;
