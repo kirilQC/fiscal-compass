@@ -1,0 +1,16 @@
+.page { min-height: 100%; display: grid; place-items: center; padding: var(--gutter); }
+.card { width: min(420px, 100%); display: grid; gap: 14px; }
+.brand { font-family: var(--serif); font-weight: 300; font-size: 56px; line-height: 1; margin: 0 0 8px; }
+.brand em { font-style: italic; color: var(--accent); }
+.lede { margin: 0 0 20px; color: var(--ink2); max-width: 40ch; }
+.input {
+  border: 0; border-bottom: 1px solid var(--rule2); background: transparent; padding: 10px 0; font-size: 18px;
+}
+.input:focus { outline: none; border-bottom-color: var(--accent); }
+.button {
+  margin-top: 8px; justify-self: start; padding: 10px 18px; border: 1px solid var(--ink); font-size: 13.5px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.button:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.button:disabled { opacity: 0.5; cursor: default; }
+.note { margin: 0; font-size: 13.5px; color: var(--ink2); }
