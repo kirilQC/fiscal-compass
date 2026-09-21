@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
 import { Ring, Sparkline } from "@/components/charts";
 import { money } from "@/lib/format";

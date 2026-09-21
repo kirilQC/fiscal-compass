@@ -10,7 +10,7 @@ export default async function OverviewPage() {
     <>
       <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <main className="wrap">
-        <NetWorthPanel netWorthCents={d.netWorthCents} daily={d.netWorthDaily} accounts={d.accounts} historyNote={d.historyNote} />
+        <NetWorthPanel netWorthCents={d.netWorthCents} daily={d.netWorthDaily} accounts={d.accounts} />
         <AccountsList accounts={d.accounts} />
         <InvestmentsSpread d={d} />
         <CreditSpread d={d} />

@@ -30,12 +30,10 @@ export function NetWorthPanel({
   netWorthCents,
   daily,
   accounts,
-  historyNote,
 }: {
   netWorthCents: number;
   daily: SeriesPoint[];
   accounts: Account[];
-  historyNote?: string | null;
 }) {
   const [range, setRange] = useState<Range>("6M");
   const [mode, setMode] = useState<"line" | "bars">("line");
