@@ -29,6 +29,25 @@ function payoff(balance: number, apr: number, payment: number): SeriesPoint[] {
   return pts;
 }
 
+function daily(monthlyValues: number[], endYear = 2026, endMonth = 9, endDay = 21): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  const end = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+  const start = new Date(Date.UTC(endYear, endMonth - 1 - (monthlyValues.length - 1), 1));
+  const days = Math.round((end.getTime() - start.getTime()) / 86400000);
+  let seed = 7;
+  const rand = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280 - 0.5);
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(start.getTime() + i * 86400000);
+    const pos = (i / days) * (monthlyValues.length - 1);
+    const lo = Math.floor(pos);
+    const hi = Math.min(monthlyValues.length - 1, lo + 1);
+    const base = monthlyValues[lo] + (monthlyValues[hi] - monthlyValues[lo]) * (pos - lo);
+    const wobble = i === days ? 0 : rand() * 900 + Math.sin(i / 3) * 220;
+    out.push({ date: d.toISOString().slice(0, 10), valueCents: k(Math.round(base + wobble)) });
+  }
+  return out;
+}
+
 const loanBase = payoff(14650, 4.9, 412);
 const loanFast = payoff(14650, 4.9, 512);
 
@@ -40,6 +59,7 @@ export const sampleDashboard: Dashboard = {
   changeYtdCents: k(9860),
   changeYtdPct: 13.3,
   netWorth12m: monthly([71200, 72000, 73400, 74300, 73900, 75800, 77100, 78600, 80200, 81500, 82970, 84210]),
+  netWorthDaily: daily([71200, 72000, 73400, 74300, 73900, 75800, 77100, 78600, 80200, 81500, 82970, 84210]),
   netWorth5y: [
     { date: "2021-12-31", valueCents: k(18000) },
     { date: "2022-12-31", valueCents: k(31000) },

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./TopBar.module.css";
+import { LogoMark } from "./Logo";
 import { AdvisorIcon, CreditIcon, GoalsIcon, InvestmentsIcon, OverviewIcon, SettingsIcon, SpendingIcon } from "./NavIcons";
 
 const NAV = [
@@ -14,13 +15,25 @@ const NAV = [
   { href: "/advisor", label: "Advisor", Icon: AdvisorIcon },
 ];
 
+function BrandInner() {
+  return (
+    <>
+      <LogoMark />
+      <span className={styles.wordmark}>
+        <span>Fiscal</span>
+        <span>Compass</span>
+      </span>
+    </>
+  );
+}
+
 export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: boolean; loadError?: string }) {
   const pathname = usePathname();
   return (
     <header className={styles.bar}>
       <div className={`wrap ${styles.inner}`}>
         <Link href="/" className={styles.brand}>
-          Fiscal <em>Compass</em>
+          <BrandInner />
         </Link>
         <nav className={styles.nav} aria-label="Primary">
           {NAV.map(({ href, label, Icon }) => {
@@ -34,8 +47,7 @@ export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: 
           })}
         </nav>
         <div className={styles.meta}>
-          {isSample ? <span className={styles.sample}>Sample data</span> : null}
-          <span className="faint">As of {asOf}</span>
+          {isSample ? <span className={styles.sample} title={`As of ${asOf}`}>Sample data</span> : null}
           <Link href="/settings" className={`${styles.settings} ${pathname.startsWith("/settings") ? styles.active : ""}`} aria-label="Settings">
             <SettingsIcon />
             <span className={styles.label}>Settings</span>
@@ -52,7 +64,7 @@ export function TopBarSkeleton() {
     <header className={styles.bar}>
       <div className={`wrap ${styles.inner}`}>
         <span className={styles.brand}>
-          Fiscal <em>Compass</em>
+          <BrandInner />
         </span>
         <nav className={styles.nav} aria-hidden="true">
           {NAV.map(({ href, label, Icon }) => (

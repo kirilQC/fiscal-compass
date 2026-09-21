@@ -1,0 +1,89 @@
+.panel { padding-block: 36px 24px; display: grid; gap: 18px; }
+.head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "eyebrow controls" "figure strip";
+  align-items: end;
+  column-gap: 32px;
+  row-gap: 6px;
+}
+.eyebrow { grid-area: eyebrow; align-self: center; }
+.figure { grid-area: figure; }
+.nw {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(72px, 9.5vw, 124px);
+  line-height: 0.82;
+  letter-spacing: -0.03em;
+  margin: 0;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap;
+}
+.nw sup {
+  font-size: 0.42em;
+  vertical-align: top;
+  top: 0.32em;
+  position: relative;
+  font-weight: 400;
+  margin-right: 0.02em;
+}
+.strip {
+  grid-area: strip;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: var(--ink2);
+  font-size: 13px;
+  padding-bottom: 12px;
+}
+.strip b { font-family: var(--serif); font-weight: 400; font-size: 22px; color: var(--ink); margin-left: 8px; letter-spacing: -0.01em; }
+.strip em { font-style: normal; color: var(--ink); margin-left: 6px; }
+.strip i { color: var(--ink3); font-style: normal; }
+.controls {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+  align-self: center;
+}
+.iconBtn {
+  width: 28px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink2);
+  border-radius: 6px;
+  margin-right: 6px;
+}
+.iconBtn:hover, .iconOn { color: var(--ink); background: var(--surface2); }
+.pill {
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--ink2);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.pill:hover { color: var(--ink); }
+.pillOn { background: var(--accent-soft); color: var(--ink); }
+.chartWrap { display: grid; gap: 6px; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; cursor: crosshair; }
+.strip2 { width: 100%; height: auto; display: block; overflow: visible; }
+.tip { fill: var(--ink); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.stripLabel { font-size: 10px; fill: var(--ink3); }
+.axisR { font-size: 9.5px; fill: var(--ink3); }
+.axisNeg { fill: var(--accent); }
+.note { color: var(--ink3); font-size: 12px; margin: 0; }
+@media (max-width: 960px) {
+  .head {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "eyebrow controls" "figure figure" "strip strip";
+    row-gap: 12px;
+  }
+  .strip { padding-bottom: 0; }
+}
+@media (max-width: 520px) {
+  .strip b { font-size: 18px; }
+}

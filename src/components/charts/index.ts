@@ -12,3 +12,5 @@ export { PayoffChart } from "./PayoffChart";
 export type { PayoffChartProps } from "./PayoffChart";
 export { BarStrip } from "./BarStrip";
 export type { BarStripProps, StripItem } from "./BarStrip";
+export { Donut } from "./Donut";
+export type { DonutProps, DonutSlice } from "./Donut";

@@ -1,7 +1,7 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
 import { Onboarding } from "@/components/Onboarding";
-import { BarChart, Track } from "@/components/charts";
+import { BarChart, Donut, Track } from "@/components/charts";
 import { money, monthLabel } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import { BudgetEditor } from "@/components/sections/BudgetEditor";
@@ -70,7 +70,9 @@ export default async function SpendingPage() {
               </p>
             </div>
             <div>
-              <BudgetEditor budget={b} />
+              <h2 className={s.h2}>Where it went</h2>
+              <p className={s.sub}>{monthName} spending by category</p>
+              <Donut slices={b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents }))} ariaLabel={`Spending by category, ${monthName}`} formatValue={money} size={240} thickness={54} maxSlices={7} centerLabel={money(b.spentCents)} centerSub="spent" />
             </div>
           </section>
         ) : (
@@ -80,6 +82,14 @@ export default async function SpendingPage() {
             </p>
           </section>
         )}
+
+        {b ? (
+          <section className={s.section}>
+            <h2 className={s.h2}>Categories</h2>
+            <p className={s.sub}>spent against each limit</p>
+            <BudgetEditor budget={b} />
+          </section>
+        ) : null}
 
         <section className={`${s.section} ${s.two}`}>
           <div>

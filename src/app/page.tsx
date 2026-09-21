@@ -1,7 +1,7 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
 import { Onboarding } from "@/components/Onboarding";
-import { Hero, NetWorthSpread, InvestmentsSpread, CreditSpread, SpendingSpread, AdvisorSpread, GoalsSpread, Ledger, Foot } from "@/components/overview";
+import { NetWorthPanel, AccountsList, InvestmentsSpread, CreditSpread, SpendingSpread, AdvisorSpread, GoalsSpread, Ledger, Foot } from "@/components/overview";
 
 export default async function OverviewPage() {
   const d = await getDashboard();
@@ -10,8 +10,8 @@ export default async function OverviewPage() {
     <>
       <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <main className="wrap">
-        <Hero d={d} />
-        <NetWorthSpread d={d} />
+        <NetWorthPanel netWorthCents={d.netWorthCents} daily={d.netWorthDaily} accounts={d.accounts} historyNote={d.historyNote} />
+        <AccountsList accounts={d.accounts} />
         <InvestmentsSpread d={d} />
         <CreditSpread d={d} />
         <SpendingSpread d={d} />

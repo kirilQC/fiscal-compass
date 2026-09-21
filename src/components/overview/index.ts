@@ -1,5 +1,5 @@
-export { Hero } from "./Hero";
-export { NetWorthSpread } from "./NetWorthSpread";
+export { NetWorthPanel } from "./NetWorthPanel";
+export { AccountsList } from "./AccountsList";
 export { InvestmentsSpread } from "./InvestmentsSpread";
 export { CreditSpread } from "./CreditSpread";
 export { SpendingSpread } from "./SpendingSpread";

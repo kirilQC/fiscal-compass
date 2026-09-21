@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
-import { BarChart, Track, toneVar } from "@/components/charts";
+import { BarChart, Donut, Track, toneVar } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { toneOf } from "./util";
@@ -47,6 +47,7 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
   const typicalIncome = fullMonths.length ? fullMonths[fullMonths.length - 1].incomeCents : 0;
   const anomaly = d.recentTransactions.find((t) => t.anomalyNote);
   const categories = b.categories.filter((c) => c.limitCents > 0 || c.spentCents > 0);
+  const slices = b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents }));
 
   return (
     <section className={s.spread}>
@@ -88,7 +89,9 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
         </div>
       </div>
       <div>
-        {b.isSuggested ? <div style={{ marginTop: 46 }}><SaveSuggestedBudget budget={b} compact /></div> : <p className={`${s.sub} ${s.subOffset}`}>Categories · of budget</p>}
+        <p className={`${s.sub} ${s.subOffset}`}>Where {monthName} went · {money(b.spentCents)}</p>
+        <Donut slices={slices} ariaLabel={`Spending by category, ${monthName}`} formatValue={money} size={220} thickness={50} maxSlices={6} />
+        {b.isSuggested ? <div style={{ marginTop: 34 }}><SaveSuggestedBudget budget={b} compact /></div> : <p className={s.sub} style={{ marginTop: 34 }}>Categories · of budget</p>}
         {categories.map((c) => {
           const pct = c.limitCents ? (c.spentCents / c.limitCents) * 100 : 0;
           const tone = c.isCommitment ? "good" : toneOf(pct);

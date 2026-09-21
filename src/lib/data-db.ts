@@ -132,6 +132,45 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   }
   netWorth12m.push({ date: todayIso, valueCents: netWorthCents });
 
+  // Daily series: per account, start from the earliest known snapshot and unwind posted transactions day by day.
+  const dailyStart = (() => {
+    const yearAgo = iso(new Date(Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), now.getUTCDate())));
+    return historyStart > yearAgo ? historyStart : yearAgo;
+  })();
+  const dayTotals = new Map<string, number>();
+  const dayKeys: string[] = [];
+  for (let d = new Date(`${dailyStart}T00:00:00Z`); iso(d) <= todayIso; d = new Date(d.getTime() + 86400000)) {
+    dayKeys.push(iso(d));
+    dayTotals.set(iso(d), 0);
+  }
+  for (const a of accounts) {
+    const list = histByAccount.get(a.id);
+    if (!list?.length) continue;
+    const snapshots = new Map(list.map((b) => [b.as_of, b.balance_cents]));
+    const earliest = list[0];
+    const txByDay = new Map<string, number>();
+    for (const t of postedByAccount.get(a.id) ?? []) {
+      if (t.posted_on <= earliest.as_of) txByDay.set(t.posted_on, (txByDay.get(t.posted_on) ?? 0) + t.amount_cents);
+    }
+    let running = earliest.balance_cents;
+    const before = new Map<string, number>();
+    for (let i = dayKeys.length - 1; i >= 0; i--) {
+      const day = dayKeys[i];
+      if (day <= earliest.as_of) {
+        before.set(day, running);
+        running -= txByDay.get(day) ?? 0;
+      }
+    }
+    let carried: number | null = null;
+    for (const day of dayKeys) {
+      const snap = snapshots.get(day);
+      if (snap !== undefined) carried = snap;
+      const v = day <= earliest.as_of ? (before.get(day) ?? earliest.balance_cents) : carried ?? earliest.balance_cents;
+      dayTotals.set(day, (dayTotals.get(day) ?? 0) + v);
+    }
+  }
+  const netWorthDaily: SeriesPoint[] = dayKeys.map((day) => ({ date: day, valueCents: day === todayIso ? netWorthCents : dayTotals.get(day) ?? 0 }));
+
   const netWorth5y: SeriesPoint[] = [];
   for (let y = now.getUTCFullYear() - 5; y < now.getUTCFullYear(); y++) {
     const d = iso(monthEnd(y, 11));
@@ -386,6 +425,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     changeSince,
     changeYtdPct: Math.round(changeYtdPct * 10) / 10,
     netWorth12m,
+    netWorthDaily,
     netWorth5y,
     savingsRatePct,
     accounts: accountsOut,
