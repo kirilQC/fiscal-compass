@@ -6,7 +6,9 @@ import { money } from "@/lib/format";
 import type { Goal, SeriesPoint } from "@/lib/types";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import { AddGoal, EditGoal } from "@/components/sections/GoalForms";
+import Link from "next/link";
 import s from "@/components/sections/sections.module.css";
+import { prettyName } from "@/components/sections/names";
 
 const monthYear = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -51,7 +53,7 @@ export default async function GoalsPage() {
           const when = g.targetDate ? monthYear(g.targetDate) : null;
           const proj = projection(g, d.asOf);
           const gap = (g.requiredMonthlyCents ?? 0) - (g.monthlyPlanCents ?? 0);
-          const lands = proj[proj.length - 1].valueCents;
+          const lands = proj[proj.length - 1]?.valueCents ?? g.savedCents;
           return (
             <section className={`${s.section} ${s.two}`} key={g.id}>
               <div>
@@ -109,10 +111,21 @@ export default async function GoalsPage() {
           );
         })}
 
-        {d.loans.map((loan) => (
+        {d.loans.map((loan) => (loan.balanceCents <= 0 || loan.payoffCurve.length < 2) ? (
           <section className={`${s.section} ${s.two}`} key={loan.accountId}>
             <div>
-              <h2 className={s.h2}>{loan.name}</h2>
+              <h2 className={s.h2}>{prettyName(loan.name)}</h2>
+              <p className={s.sub}>{loan.paymentCents ? `${money(loan.paymentCents)} a month` : "balance unknown"}</p>
+              <p className={s.voice}>
+                Chase doesn&apos;t expose loan balances over Stripe — I only see the payments leaving checking. <Link href="/settings" className={s.link}>Enter the balance, rate and monthly payment in Settings</Link> and this becomes a payoff date, with what an extra $100 a month would do to it.
+              </p>
+            </div>
+            <div />
+          </section>
+        ) : (
+          <section className={`${s.section} ${s.two}`} key={loan.accountId}>
+            <div>
+              <h2 className={s.h2}>{prettyName(loan.name)}</h2>
               <p className={s.sub}>
                 {money(loan.balanceCents)} · {loan.apr}% · {money(loan.paymentCents)} a month · {loan.paymentsLeft} payments left
               </p>
@@ -128,7 +141,7 @@ export default async function GoalsPage() {
                 accelerated={loan.acceleratedCurve}
                 startLabel={`now · ${money(loan.balanceCents)}`}
                 endLabel={monthYear(loan.payoffCurve[loan.payoffCurve.length - 1].date)}
-                altLabel={`+$100/mo · ${monthYear(loan.acceleratedCurve[loan.acceleratedCurve.length - 1].date)}`}
+                altLabel={loan.acceleratedCurve.length ? `+$100/mo · ${monthYear(loan.acceleratedCurve[loan.acceleratedCurve.length - 1].date)}` : undefined}
                 altLegend={`$100 extra a month · ${loan.monthsSavedWithExtra} months sooner`}
               />
             </div>

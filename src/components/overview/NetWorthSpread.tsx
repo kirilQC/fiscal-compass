@@ -22,7 +22,8 @@ export function NetWorthSpread({ d }: { d: Dashboard }) {
         formatY={(v) => `$${Math.round(v / 100000)}k`}
         xLabel={(p, i, n) => (i === n - 1 ? monthShort(p.date) : i === 0 ? monthYear(p.date) : i % 2 === 0 ? monthShort(p.date) : null)}
       />
-      <BarStrip items={years} ariaLabel="Net worth by year, five years" caption="Five years" note={note} />
+      {d.historyNote ? <p className={s.histNote}>{d.historyNote}</p> : null}
+      {years.length > 1 ? <BarStrip items={years} ariaLabel="Net worth by year, five years" caption="Five years" note={note} /> : null}
     </section>
   );
 }

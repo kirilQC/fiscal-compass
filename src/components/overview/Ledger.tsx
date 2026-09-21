@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
 import { dateLabel, moneyExact } from "@/lib/format";
+import { prettyName } from "@/components/sections/names";
 import s from "./overview.module.css";
 
 export function Ledger({ d }: { d: Dashboard }) {
@@ -30,7 +31,7 @@ export function Ledger({ d }: { d: Dashboard }) {
                   {t.anomalyNote ? <span className={s.flag}>Unusual · {t.anomalyNote}</span> : null}
                 </td>
                 <td className={s.hideNarrow}>
-                  {t.category} <span className={s.acct}>· {t.accountName}</span>
+                  {t.category} <span className={s.acct}>· {prettyName(t.accountName)}</span>
                 </td>
                 <td className={`${s.amt} num ${t.isIncome ? "good" : ""}`}>
                   {t.amountCents < 0 ? "−" : "+"}{moneyExact(Math.abs(t.amountCents))}

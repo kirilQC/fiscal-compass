@@ -17,6 +17,7 @@ export interface PayoffChartProps {
 }
 
 export function PayoffChart({ base, accelerated, ariaLabel, width = 520, height = 150, startLabel, endLabel, altLabel, baseLegend = "current plan", altLegend, className }: PayoffChartProps) {
+  if (base.length < 2) return null;
   const bottom = height - 30;
   const hi = Math.max(...base.map((p) => p.valueCents));
   const y = yScale(0, hi, 12, bottom);

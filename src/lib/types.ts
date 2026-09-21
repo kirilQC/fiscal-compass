@@ -47,6 +47,7 @@ export interface BudgetSummary {
   daysInMonth: number;
   projectedCents: number;
   categories: CategoryBudget[];
+  isSuggested?: boolean;
 }
 
 export interface MonthlyFlow {
@@ -110,10 +111,12 @@ export interface Dashboard {
   isSample: boolean;
   needsSetup?: boolean;
   loadError?: string;
+  historyNote?: string | null;
   netWorthCents: number;
   changeMtdCents: number;
   changeYtdCents: number;
   changeYtdPct: number;
+  changeSince?: string;
   netWorth12m: SeriesPoint[];
   netWorth5y: SeriesPoint[];
   savingsRatePct: number | null;

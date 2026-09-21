@@ -4,9 +4,8 @@ import { LinkAccountButton } from "@/components/LinkAccountButton";
 import { money } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import { AddManualAccount, BriefPreview, Paychecks, SignOut, SyncNow } from "@/components/sections/SettingsPanels";
+import { AccountsEditor } from "@/components/sections/AccountsEditor";
 import s from "@/components/sections/sections.module.css";
-
-const KIND_LABEL: Record<string, string> = { checking: "Checking", savings: "Savings", credit: "Credit card", loan: "Loan", investment: "Investment", other: "Other" };
 
 export default async function SettingsPage() {
   const d = await getDashboard();
@@ -29,22 +28,8 @@ export default async function SettingsPage() {
         <section className={`${s.section} ${s.two}`}>
           <div>
             <h2 className={s.h2}>Accounts</h2>
-            <p className={s.sub}>balances as of {d.asOf}</p>
-            <div className={s.list}>
-              {d.accounts.map((a) => (
-                <div className={s.row} key={a.id}>
-                  <span className={s.n}>
-                    {a.institution} {a.name}
-                    <small>{KIND_LABEL[a.kind]}{a.last4 ? ` · ···${a.last4}` : ""}{a.kind === "loan" && a.loanApr !== null ? ` · ${a.loanApr}% · ${a.loanPaymentsLeft} left` : ""}</small>
-                  </span>
-                  <span />
-                  <span className={`${s.v} num ${a.balanceCents < 0 ? "muted" : ""}`}>
-                    {a.balanceCents < 0 ? "−" : ""}{money(Math.abs(a.balanceCents))}
-                    {a.changeMtdCents !== null ? <small className={a.changeMtdCents >= 0 ? "good" : "crit"}>{a.changeMtdCents >= 0 ? "+" : "−"}{money(Math.abs(a.changeMtdCents))} this month</small> : null}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p className={s.sub}>balances as of {d.asOf} · edit to rename, set a credit limit, or fill in what Stripe can&apos;t read</p>
+            <AccountsEditor accounts={d.accounts} asOf={d.asOf} />
             <div className={s.actions} style={{ marginTop: 28 }}>
               <LinkAccountButton label="Link a bank through Stripe" />
               <SyncNow />

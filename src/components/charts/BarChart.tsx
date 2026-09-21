@@ -36,6 +36,7 @@ export function BarChart({
   className,
   style,
 }: BarChartProps) {
+  if (bars.length === 0) return null;
   const top = 16;
   const bottom = height - 32;
   const hi = yMax ?? Math.max(...bars.map((b) => Math.max(b.value, b.projected ?? 0)), ...references.map((r) => r.value)) * 1.08;

@@ -256,3 +256,15 @@
   .h svg { grid-column: 1 / -1; }
   .ledger .hideNarrow { display: none; }
 }
+
+.empty {
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.4;
+  color: var(--ink2);
+  max-width: 34em;
+  margin: 0;
+}
+.empty a { color: var(--accent); }
+.empty b { color: var(--ink); font-weight: 400; }
+.histNote { color: var(--ink3); font-size: 12px; margin: -6px 0 0; }

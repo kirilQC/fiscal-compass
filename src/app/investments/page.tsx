@@ -7,6 +7,7 @@ import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import { AddHolding, ImportPositions } from "@/components/sections/HoldingsForms";
 import o from "@/components/overview/overview.module.css";
 import s from "@/components/sections/sections.module.css";
+import { prettyName } from "@/components/sections/names";
 
 const CLASS_LABEL: Record<string, string> = { us_equity: "US equity", intl_equity: "International", bond: "Bonds", cash: "Cash", other: "Other" };
 const CLASS_ORDER = ["us_equity", "intl_equity", "bond", "cash", "other"];
@@ -31,7 +32,9 @@ export default async function InvestmentsPage() {
   const nonCashIdx = byClass.filter((c) => c.cls !== "cash").map((c) => c.cls);
   const segments = byClass.map((c) => (c.cls === "cash" ? { pct: c.actual, color: "var(--ink3)" } : { pct: c.actual, opacity: opacityAt(nonCashIdx.indexOf(c.cls)) }));
   const equityPct = Math.round(byClass.filter((c) => c.cls === "us_equity" || c.cls === "intl_equity").reduce((sum, c) => sum + c.actual, 0));
-  const maxDrift = Math.max(0, ...byClass.map((c) => (c.target === null ? 0 : Math.abs(c.actual - c.target))));
+  const maxDrift = byClass.reduce((m, c) => (c.target === null ? m : Math.max(m, Math.abs(c.actual - c.target))), 0);
+  const noHoldings = d.holdings.length === 0;
+  const mtdFromAccounts = investAccounts.reduce((sum, a) => sum + (a.changeMtdCents ?? 0), 0);
   const mtdCents = change === null ? null : Math.round(d.investmentTotalCents - d.investmentTotalCents / (1 + change / 100));
 
   return (
@@ -40,14 +43,33 @@ export default async function InvestmentsPage() {
       <main className="wrap">
         <PageHead
           title="Investments"
-          lede={`${investAccounts.map((a) => `${a.institution} ${a.name}`).join(", ") || "Brokerage"} · ${d.holdings.length} holdings`}
+          lede={`${investAccounts.map((a) => `${a.institution} ${prettyName(a.name)}`).join(", ") || "Brokerage"} · ${noHoldings ? "no positions imported yet" : `${d.holdings.length} holdings`}`}
           figs={[
             { value: money(d.investmentTotalCents), label: "total value" },
-            ...(mtdCents !== null ? [{ value: `${mtdCents >= 0 ? "+" : "−"}${money(Math.abs(mtdCents))}`, label: `this month · ${pct(change ?? 0)}`, tone: mtdCents >= 0 ? "good" : "crit" }] : []),
-            { value: `${equityPct}%`, label: "in equities" },
+            ...(mtdCents !== null ? [{ value: `${mtdCents >= 0 ? "+" : "−"}${money(Math.abs(mtdCents))}`, label: `this month · ${pct(change ?? 0)}`, tone: mtdCents >= 0 ? "good" : "crit" }]
+              : mtdFromAccounts ? [{ value: `${mtdFromAccounts >= 0 ? "+" : "−"}${money(Math.abs(mtdFromAccounts))}`, label: "this month", tone: mtdFromAccounts >= 0 ? "good" : "crit" }] : []),
+            ...(noHoldings ? [] : [{ value: `${equityPct}%`, label: "in equities" }]),
           ]}
         />
 
+        {noHoldings ? (
+          <section className={`${s.section} ${s.two}`}>
+            <div>
+              <h2 className={s.h2}>What Stripe sees</h2>
+              <p className={s.sub}>the account balance, refreshed each morning</p>
+              <p className={s.voice}>
+                Fidelity reports <b>{money(d.investmentTotalCents)}</b> across {investAccounts.length === 1 ? "your account" : `${investAccounts.length} accounts`}, but not what it&apos;s made of. Export <b>Positions</b> from Fidelity (Accounts &amp; Trade → Positions → Download) and drop the CSV here — each holding gets its own chart, and I can start talking about allocation and drift.
+              </p>
+            </div>
+            <div>
+              <h2 className={s.h2}>Import Fidelity positions</h2>
+              <p className={s.sub}>Symbol, Description, Quantity, Last Price, Current Value</p>
+              {investAccounts.length ? <ImportPositions accounts={investAccounts} /> : <p className={s.hint}>Link or add an investment account in Settings first.</p>}
+            </div>
+          </section>
+        ) : null}
+
+        {noHoldings ? null : (
         <section className={`${s.section} ${s.two}`}>
           <div>
             <h2 className={s.h2}>Allocation</h2>
@@ -113,7 +135,9 @@ export default async function InvestmentsPage() {
             </table>
           </div>
         </section>
+        )}
 
+        {noHoldings ? null : (
         <section className={s.section}>
           <h2 className={s.h2}>Each holding</h2>
           <p className={s.sub}>twelve months · value in dollars</p>
@@ -147,10 +171,11 @@ export default async function InvestmentsPage() {
             );
           })}
         </section>
+        )}
 
         <section className={`${s.section} ${s.two}`}>
           <div>
-            <h2 className={s.h2}>Import Fidelity positions</h2>
+            <h2 className={s.h2}>{noHoldings ? "Re-import later" : "Import Fidelity positions"}</h2>
             <p className={s.sub}>Stripe links the Fidelity balance; holdings come from the Positions export</p>
             {investAccounts.length ? <ImportPositions accounts={investAccounts} /> : <p className={s.hint}>Link or add an investment account in Settings first.</p>}
           </div>

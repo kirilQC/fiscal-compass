@@ -27,7 +27,7 @@ interface AccountRow {
 interface BalanceRow { account_id: string; as_of: string; balance_cents: number }
 interface TxnRow {
   id: string; account_id: string; posted_on: string; amount_cents: number; merchant: string; category: string;
-  is_transfer: boolean; is_income: boolean; anomaly_note: string | null;
+  is_transfer: boolean; is_income: boolean; anomaly_note: string | null; status: string;
 }
 interface HoldingRow { id: string; account_id: string; symbol: string; name: string | null; asset_class: string | null; target_pct: number | null }
 interface HoldingDailyRow { holding_id: string; as_of: string; value_cents: number }
@@ -51,7 +51,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ] = await Promise.all([
     supabase.from("accounts").select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", since5y).order("as_of"),
-    supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note").eq("user_id", userId).gte("posted_on", since6m).order("posted_on", { ascending: false }),
+    supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note,status").eq("user_id", userId).gte("posted_on", since12m).order("posted_on", { ascending: false }).limit(5000),
     supabase.from("holdings").select("id,account_id,symbol,name,asset_class,target_pct").eq("user_id", userId),
     supabase.from("holdings_daily").select("holding_id,as_of,value_cents").eq("user_id", userId).gte("as_of", since12m).order("as_of"),
     supabase.from("goals").select("id,name,target_cents,saved_cents,target_date,monthly_plan_cents,sort").eq("user_id", userId).order("sort"),
@@ -76,38 +76,64 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     list.push(b);
     histByAccount.set(b.account_id, list);
   }
+  const kindOf = new Map(accounts.map((a) => [a.id, a.kind]));
+  const postedByAccount = new Map<string, TxnRow[]>();
+  for (const t of txns) {
+    if (t.status === "pending") continue;
+    const list = postedByAccount.get(t.account_id) ?? [];
+    list.push(t);
+    postedByAccount.set(t.account_id, list);
+  }
+  const earliestTxn = txns.length ? txns[txns.length - 1].posted_on : null;
+  let reconstructedBefore: string | null = null;
+
+  // Before the first snapshot, a balance is rebuilt by unwinding posted transactions (for investments this captures
+  // transfers in and out but not market movement).
   const balanceAt = (accountId: string, date: string): number | null => {
     const list = histByAccount.get(accountId);
-    if (!list) return null;
+    if (!list?.length) return null;
     let v: number | null = null;
     for (const b of list) {
       if (b.as_of <= date) v = b.balance_cents;
       else break;
     }
-    return v;
+    if (v !== null) return v;
+    const earliest = list[0];
+    if (earliestTxn && date < earliestTxn) return null;
+    if (!reconstructedBefore || earliest.as_of < reconstructedBefore) reconstructedBefore = earliest.as_of;
+    let unwound = 0;
+    for (const t of postedByAccount.get(accountId) ?? []) {
+      if (t.posted_on > date && t.posted_on <= earliest.as_of) unwound += t.amount_cents;
+    }
+    return earliest.balance_cents - unwound;
   };
   const netWorthAt = (date: string) => accounts.reduce((s, a) => s + (balanceAt(a.id, date) ?? 0), 0);
 
   const netWorthCents = netWorthAt(todayIso);
   const lastMonthEnd = iso(monthEnd(now.getUTCFullYear(), now.getUTCMonth() - 1));
   const lastYearEnd = iso(monthEnd(now.getUTCFullYear() - 1, 11));
-  const nwLastMonth = netWorthAt(lastMonthEnd);
-  const nwLastYear = netWorthAt(lastYearEnd);
+  // Baselines fall back to the earliest reconstructable date when history is shorter than the period.
+  const firstHistory = earliestTxn ?? balances[0]?.as_of ?? todayIso;
+  const nwLastMonth = lastMonthEnd >= firstHistory ? netWorthAt(lastMonthEnd) : netWorthAt(firstHistory);
+  const nwLastYear = lastYearEnd >= firstHistory ? netWorthAt(lastYearEnd) : netWorthAt(firstHistory);
+  const changeSince = lastYearEnd >= firstHistory ? lastYearEnd : firstHistory;
   const changeMtdCents = netWorthCents - nwLastMonth;
   const changeYtdCents = netWorthCents - nwLastYear;
   const changeYtdPct = nwLastYear ? (changeYtdCents / Math.abs(nwLastYear)) * 100 : 0;
 
+  const historyStart = earliestTxn && earliestTxn < (balances[0]?.as_of ?? todayIso) ? earliestTxn : balances[0]?.as_of ?? todayIso;
   const netWorth12m: SeriesPoint[] = [];
   for (let i = 11; i >= 1; i--) {
-    const d = monthEnd(now.getUTCFullYear(), now.getUTCMonth() - i);
-    netWorth12m.push({ date: iso(d), valueCents: netWorthAt(iso(d)) });
+    const d = iso(monthEnd(now.getUTCFullYear(), now.getUTCMonth() - i));
+    if (d < historyStart) continue;
+    netWorth12m.push({ date: d, valueCents: netWorthAt(d) });
   }
   netWorth12m.push({ date: todayIso, valueCents: netWorthCents });
 
   const netWorth5y: SeriesPoint[] = [];
   for (let y = now.getUTCFullYear() - 5; y < now.getUTCFullYear(); y++) {
     const d = iso(monthEnd(y, 11));
-    if (d >= (balances[0]?.as_of ?? todayIso)) netWorth5y.push({ date: d, valueCents: netWorthAt(d) });
+    if (d >= historyStart) netWorth5y.push({ date: d, valueCents: netWorthAt(d) });
   }
   netWorth5y.push({ date: todayIso, valueCents: netWorthCents });
 
@@ -175,6 +201,40 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const spentCents = thisMonthSpend.reduce((s, t) => s - t.amount_cents, 0);
   let budget: BudgetSummary | null = null;
   const budgetRow = budgetQ.data as { total_cents: number; budget_categories: { category: string; limit_cents: number }[] } | null;
+  if (!budgetRow) {
+    // No budget saved yet: propose one from the last three full months so the page is never blank.
+    const months: string[] = [];
+    for (let i = 3; i >= 1; i--) months.push(ym(iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)))));
+    const past = txns.filter((t) => isSpend(t) && months.includes(ym(t.posted_on)));
+    if (past.length) {
+      const byCat = new Map<string, number>();
+      for (const t of past) byCat.set(t.category, (byCat.get(t.category) ?? 0) - t.amount_cents);
+      const monthsWithData = new Set(past.map((t) => ym(t.posted_on))).size || 1;
+      const total = Math.ceil(past.reduce((s, t) => s - t.amount_cents, 0) / monthsWithData / 10000) * 10000;
+      const spentByCat = new Map<string, number>();
+      for (const t of thisMonthSpend) spentByCat.set(t.category, (spentByCat.get(t.category) ?? 0) - t.amount_cents);
+      const categories = [...byCat.entries()].map(([category, sum]) => ({
+        category,
+        limitCents: Math.max(1000, Math.round(sum / monthsWithData / 1000) * 1000),
+        spentCents: spentByCat.get(category) ?? 0,
+      }));
+      for (const [cat, spent] of spentByCat) {
+        if (!categories.some((c) => c.category === cat)) categories.push({ category: cat, limitCents: 0, spentCents: spent });
+      }
+      budget = {
+        month: ym(monthStart),
+        totalCents: total,
+        spentCents,
+        remainingCents: total - spentCents,
+        pctUsed: total ? Math.round((spentCents / total) * 100) : 0,
+        dayOfMonth,
+        daysInMonth,
+        projectedCents: Math.round((spentCents / dayOfMonth) * daysInMonth),
+        categories: categories.sort((a, b) => b.spentCents - a.spentCents),
+        isSuggested: true,
+      };
+    }
+  }
   if (budgetRow) {
     const spentByCat = new Map<string, number>();
     for (const t of thisMonthSpend) spentByCat.set(t.category, (spentByCat.get(t.category) ?? 0) - t.amount_cents);
@@ -242,9 +302,10 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const loans: LoanSummary[] = accountsOut
     .filter((a) => a.kind === "loan")
     .map((a) => {
-      const owed = -a.balanceCents;
+      const owed = Math.max(0, -a.balanceCents);
       const apr = a.loanApr ?? 0;
-      const payment = a.loanPaymentCents ?? Math.ceil(owed / Math.max(1, a.loanPaymentsLeft ?? 36));
+      const lastPayment = txns.find((t) => t.account_id === a.id && t.amount_cents > 0)?.amount_cents ?? null;
+      const payment = a.loanPaymentCents ?? lastPayment ?? (owed ? Math.ceil(owed / Math.max(1, a.loanPaymentsLeft ?? 36)) : 0);
       const base = amortize(owed, apr, payment, now);
       const fast = amortize(owed, apr, payment + 10000, now);
       return {
@@ -253,7 +314,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
         balanceCents: owed,
         apr,
         paymentCents: payment,
-        paymentsLeft: a.loanPaymentsLeft ?? base.length - 1,
+        paymentsLeft: a.loanPaymentsLeft ?? Math.max(0, base.length - 1),
         payoffCurve: base,
         acceleratedCurve: fast,
         monthsSavedWithExtra: Math.max(0, base.length - fast.length),
@@ -279,7 +340,10 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   });
 
   const accountName = new Map(accountsOut.map((a) => [a.id, a.name]));
-  const recentTransactions: Transaction[] = txns.slice(0, 8).map((t) => ({
+  const recentTransactions: Transaction[] = txns
+    .filter((t) => !t.is_transfer && kindOf.get(t.account_id) !== "investment")
+    .slice(0, 10)
+    .map((t) => ({
     id: t.id,
     postedOn: t.posted_on,
     merchant: t.merchant,
@@ -301,6 +365,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     netWorthCents,
     changeMtdCents,
     changeYtdCents,
+    changeSince,
     changeYtdPct: Math.round(changeYtdPct * 10) / 10,
     netWorth12m,
     netWorth5y,
@@ -317,11 +382,15 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     recentTransactions,
     annotations,
     brief,
+    historyNote: reconstructedBefore
+      ? `History before ${reconstructedBefore} is reconstructed from transactions; market movement in investments is not captured until daily snapshots accumulate.`
+      : null,
   };
 }
 
 function amortize(balanceCents: number, apr: number, paymentCents: number, start: Date): SeriesPoint[] {
   const pts: SeriesPoint[] = [];
+  if (balanceCents <= 0 || paymentCents <= 0) return [{ date: iso(start), valueCents: Math.max(0, Math.round(balanceCents)) }];
   const r = apr / 100 / 12;
   let b = balanceCents;
   let i = 0;

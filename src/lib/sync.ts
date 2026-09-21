@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { stripe, currentBalanceCents } from "./stripe";
-import { categorize, cleanMerchant, type Rule } from "./categorize";
+import { categorize, categorizeMerchantsWithAI, cleanMerchant, normalizeMerchant, type Rule } from "./categorize";
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -28,6 +28,7 @@ export async function syncUser(admin: SupabaseClient, userId: string) {
       if (a.provider !== "stripe" || !a.provider_account_id) continue;
       detail[a.id] = await syncStripeAccount(admin, a, (rules ?? []) as Rule[]);
     }
+    detail.ai = await categorizeUnknownWithAI(admin, userId);
     await carryForwardHoldings(admin, userId);
   } catch (e) {
     status = "error";
@@ -43,7 +44,47 @@ export async function syncAccount(admin: SupabaseClient, accountId: string) {
   const { data: a } = await admin.from("accounts").select("id,user_id,provider,provider_account_id,kind").eq("id", accountId).single();
   if (!a || a.provider !== "stripe" || !a.provider_account_id) return null;
   const { data: rules } = await admin.from("category_rules").select("merchant_pattern,category,is_transfer,is_income").eq("user_id", a.user_id);
-  return syncStripeAccount(admin, a as AccountRow, (rules ?? []) as Rule[]);
+  const result = await syncStripeAccount(admin, a as AccountRow, (rules ?? []) as Rule[]);
+  await categorizeUnknownWithAI(admin, a.user_id);
+  return result;
+}
+
+// Asks the model once per unknown merchant and persists the answer as a rule so it is never asked again.
+export async function categorizeUnknownWithAI(admin: SupabaseClient, userId: string) {
+  const { data: unknown } = await admin
+    .from("transactions")
+    .select("id,merchant")
+    .eq("user_id", userId)
+    .eq("category", "Other")
+    .neq("category_source", "manual")
+    .eq("is_transfer", false)
+    .limit(2000);
+  if (!unknown?.length) return { asked: 0, applied: 0 };
+  const byNorm = new Map<string, string[]>();
+  for (const t of unknown) {
+    const n = normalizeMerchant(t.merchant);
+    byNorm.set(n, [...(byNorm.get(n) ?? []), t.id]);
+  }
+  const { data: rules } = await admin.from("category_rules").select("merchant_pattern").eq("user_id", userId);
+  const have = new Set((rules ?? []).map((r) => r.merchant_pattern.toUpperCase()));
+  const ask = [...byNorm.keys()].filter((n) => !have.has(n));
+  const answers = await categorizeMerchantsWithAI(ask);
+  let applied = 0;
+  const newRules: Record<string, unknown>[] = [];
+  for (const [norm, ans] of Object.entries(answers)) {
+    if (ans.category === "Other") continue;
+    newRules.push({ user_id: userId, merchant_pattern: norm, category: ans.category, is_transfer: ans.isTransfer, is_income: ans.isIncome });
+    const ids = byNorm.get(norm) ?? [];
+    if (ids.length) {
+      await admin
+        .from("transactions")
+        .update({ category: ans.category, category_source: "ai", is_transfer: ans.isTransfer, is_income: ans.isIncome })
+        .in("id", ids);
+      applied += ids.length;
+    }
+  }
+  if (newRules.length) await admin.from("category_rules").insert(newRules);
+  return { asked: ask.length, applied };
 }
 
 async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Rule[]) {
@@ -98,7 +139,7 @@ async function pullTransactions(admin: SupabaseClient, s: Stripe, a: AccountRow,
     }
     for (const t of page.data) {
       const merchant = cleanMerchant(t.description);
-      const c = categorize(merchant, rules);
+      const c = categorize(merchant, rules, { accountKind: a.kind, amountCents: t.amount });
       // Stripe FC amounts: positive = money into the account holder's position, negative = money out.
       rows.push({
         user_id: a.user_id,

@@ -4,16 +4,19 @@ import { Onboarding } from "@/components/Onboarding";
 import { BarChart, LineChart, Ring, Track } from "@/components/charts";
 import { dateLabel, money, moneyExact, monthLabel } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
+import Link from "next/link";
 import s from "@/components/sections/sections.module.css";
+import { prettyName } from "@/components/sections/names";
 
 export default async function CreditPage() {
   const d = await getDashboard();
   if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const totalOwed = d.credit.reduce((sum, c) => sum + c.balanceCents, 0);
   const totalLimit = d.credit.reduce((sum, c) => sum + c.limitCents, 0);
-  const overall = totalLimit ? Math.round((totalOwed / totalLimit) * 100) : 0;
+  const allLimits = d.credit.length > 0 && d.credit.every((c) => c.limitCents > 0);
+  const overall = allLimits && totalLimit ? Math.round((totalOwed / totalLimit) * 100) : null;
   const cardNames = new Set(d.accounts.filter((a) => a.kind === "credit").map((a) => a.name));
-  const cardTxns = d.recentTransactions.filter((t) => cardNames.has(t.accountName) && !t.isIncome);
+  const cardTxns = d.recentTransactions.filter((t) => cardNames.has(t.accountName) && !t.isIncome && t.amountCents < 0);
 
   return (
     <>
@@ -21,10 +24,10 @@ export default async function CreditPage() {
       <main className="wrap">
         <PageHead
           title="Credit"
-          lede={`${d.credit.length} card${d.credit.length === 1 ? "" : "s"} · ${money(totalLimit)} combined limit`}
+          lede={`${d.credit.length} card${d.credit.length === 1 ? "" : "s"}${allLimits ? ` · ${money(totalLimit)} combined limit` : " · limit not set"}`}
           figs={[
             { value: money(totalOwed), label: "owed now" },
-            { value: `${overall}%`, label: "overall utilization", tone: overall >= 30 ? "warn" : overall < 10 ? "good" : "" },
+            ...(overall !== null ? [{ value: `${overall}%`, label: "overall utilization", tone: overall >= 30 ? "warn" : overall < 10 ? "good" : "" }] : []),
           ]}
         />
 
@@ -33,6 +36,30 @@ export default async function CreditPage() {
         ) : null}
 
         {d.credit.map((c) => {
+          const hasLimit = c.limitCents > 0;
+          const name = prettyName(c.name);
+          if (!hasLimit) {
+            return (
+              <section className={`${s.section} ${s.two}`} key={c.accountId}>
+                <div>
+                  <h2 className={s.h2}>{name}</h2>
+                  <p className={s.sub}>limit not set</p>
+                  <div className={s.figs}><div><b className="num">{money(c.balanceCents)}</b><span>owed today</span></div></div>
+                  <p className={s.voice}>
+                    Chase doesn&apos;t share the credit limit over Stripe, so I can&apos;t compute utilization — the ratio your credit score actually watches. <Link href="/settings" className={s.link}>Add the limit in Settings</Link> and this page fills in: the ring, the 10% and 30% lines, and what to pay mid-cycle to stay under them.
+                  </p>
+                </div>
+                <div>
+                  <p className={s.sub} style={{ marginTop: 46 }}>Balance · month end</p>
+                  {c.statements.length > 1 ? (
+                    <BarChart ariaLabel={`${name} balances`} bars={c.statements.map((st, i, arr) => ({ label: monthLabel(st.month), value: st.balanceCents, emphasis: i === arr.length - 1 }))} formatValue={money} />
+                  ) : (
+                    <p className={s.hint}>One balance so far. Each morning&apos;s sync adds a point; the history draws itself in over the coming weeks.</p>
+                  )}
+                </div>
+              </section>
+            );
+          }
           const util = c.statements.map((st) => ({ date: `${st.month}-01`, valueCents: Math.round((st.balanceCents / c.limitCents) * 100) }));
           const avg = Math.round(c.statements.reduce((sum, st) => sum + st.balanceCents, 0) / Math.max(1, c.statements.length));
           const peak = c.statements.length ? c.statements.reduce((m, st) => (st.balanceCents > m.balanceCents ? st : m), c.statements[0]) : null;
@@ -42,7 +69,7 @@ export default async function CreditPage() {
             <section className={s.section} key={c.accountId}>
               <div className={s.two}>
                 <div>
-                  <h2 className={s.h2}>{c.name}</h2>
+                  <h2 className={s.h2}>{name}</h2>
                   <p className={s.sub}>
                     {money(c.limitCents)} limit{c.dueOn ? ` · ${money(c.balanceCents)} due ${dateLabel(c.dueOn)}` : ""}
                   </p>
@@ -120,7 +147,7 @@ export default async function CreditPage() {
                       {t.merchant}
                       {t.anomalyNote ? <span className={s.flag}>Unusual · {t.anomalyNote}</span> : null}
                     </td>
-                    <td className={`${s.hideNarrow} ${s.dim}`}>{t.category} · {t.accountName}</td>
+                    <td className={`${s.hideNarrow} ${s.dim}`}>{t.category} · {prettyName(t.accountName)}</td>
                     <td className={`${s.r} ${s.amt} num`}>−{moneyExact(Math.abs(t.amountCents))}</td>
                   </tr>
                 ))}
