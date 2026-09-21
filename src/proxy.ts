@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { OWNER_EMAIL } from "@/lib/owner";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC = ["/login", "/auth/callback", "/api/cron", "/api/brief", "/api/stripe/webhook"];
@@ -26,7 +27,7 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  const allowed = process.env.ALLOWED_EMAIL?.toLowerCase();
+  const allowed = OWNER_EMAIL;
 
   if (!user || (allowed && user.email?.toLowerCase() !== allowed)) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

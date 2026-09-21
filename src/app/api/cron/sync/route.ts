@@ -6,7 +6,7 @@ import { syncUser } from "@/lib/sync";
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
-  if (bearer(request) !== process.env.CRON_SECRET) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (process.env.CRON_SECRET && bearer(request) !== process.env.CRON_SECRET) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createAdminClient();
   const { data } = await admin.from("accounts").select("user_id").eq("is_active", true);
   const users = [...new Set((data ?? []).map((r) => r.user_id as string))];

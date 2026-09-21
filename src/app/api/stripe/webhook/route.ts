@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { env } from "@/lib/env";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncAccount } from "@/lib/sync";
 
 export async function POST(request: Request) {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) return NextResponse.json({ error: "webhooks not configured" }, { status: 503 });
   const sig = request.headers.get("stripe-signature");
   if (!sig) return NextResponse.json({ error: "missing signature" }, { status: 400 });
   const body = await request.text();
   let event: Stripe.Event;
   try {
-    event = stripe().webhooks.constructEvent(body, sig, env("STRIPE_WEBHOOK_SECRET"));
+    event = stripe().webhooks.constructEvent(body, sig, secret);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "bad signature" }, { status: 400 });
   }

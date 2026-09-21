@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { OWNER_EMAIL } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = await createClient();
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    const allowed = process.env.ALLOWED_EMAIL?.toLowerCase();
+    const allowed = OWNER_EMAIL;
     if (!error && data.user && (!allowed || data.user.email?.toLowerCase() === allowed)) {
       return NextResponse.redirect(`${origin}/`);
     }

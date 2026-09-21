@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { OWNER_EMAIL } from "@/lib/owner";
 import { bearer } from "@/lib/api";
 import { buildBrief } from "@/lib/brief";
 import { buildDashboardFromDb } from "@/lib/data-db";
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   if (process.env.SAMPLE_DATA === "1") return NextResponse.json(buildBrief(sampleDashboard));
 
   const admin = createAdminClient();
-  const email = process.env.ALLOWED_EMAIL?.toLowerCase();
+  const email = OWNER_EMAIL;
   const { data, error } = await admin.auth.admin.listUsers({ perPage: 200 });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const user = data.users.find((u) => !email || u.email?.toLowerCase() === email);
