@@ -5,8 +5,9 @@ import s from "./overview.module.css";
 
 export function CreditSpread({ d }: { d: Dashboard }) {
   const c = d.credit[0];
-  if (!c) return null;
-  const util = c.statements.map((st) => ({ date: `${st.month}-01`, valueCents: Math.round((st.balanceCents / c.limitCents) * 100) }));
+  if (!c || c.statements.length === 0) return null;
+  const limit = c.limitCents || 1;
+  const util = c.statements.map((st) => ({ date: `${st.month}-01`, valueCents: Math.round((st.balanceCents / limit) * 100) }));
   const avg = Math.round(c.statements.reduce((sum, st) => sum + st.balanceCents, 0) / c.statements.length);
   const mid = Math.floor(util.length / 2);
   return (

@@ -46,7 +46,7 @@ export interface LineChartProps {
 const DEFAULT_PAD: Pad = { top: 12, right: 110, bottom: 40, left: 0 };
 
 export function LineChart({
-  series,
+  series: seriesIn,
   ariaLabel,
   width = 1200,
   height = 240,
@@ -62,6 +62,8 @@ export function LineChart({
   className,
   style,
 }: LineChartProps) {
+  const series = seriesIn.filter((s) => s.points.length > 0);
+  if (series.length === 0) return null;
   const pad = { ...DEFAULT_PAD, ...padIn };
   const all = series.flatMap((s) => s.points.map((p) => p.valueCents)).concat(references.map((r) => r.value));
   const { lo, hi } = domain(all, yMin, yMax);

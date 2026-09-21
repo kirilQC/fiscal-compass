@@ -15,7 +15,7 @@ export default async function AdvisorPage({ searchParams }: { searchParams: Prom
   const threads = await store.list();
   return (
     <>
-      <TopBar asOf={d.asOf} isSample={d.isSample} />
+      <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <AdvisorChat initialThreads={threads} prompts={suggestedPrompts(d)} brief={d.brief} initialQuery={q?.trim() || null} />
     </>
   );

@@ -109,6 +109,7 @@ export interface Dashboard {
   asOf: string;
   isSample: boolean;
   needsSetup?: boolean;
+  loadError?: string;
   netWorthCents: number;
   changeMtdCents: number;
   changeYtdCents: number;

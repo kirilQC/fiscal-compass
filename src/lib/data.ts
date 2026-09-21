@@ -11,5 +11,11 @@ export async function getDashboard(): Promise<Dashboard> {
   if (!session) return sampleDashboard;
   const { count } = await session.supabase.from("accounts").select("id", { count: "exact", head: true }).eq("user_id", session.userId);
   if (!count) return { ...sampleDashboard, isSample: true, needsSetup: true };
-  return buildDashboardFromDb(session.supabase, session.userId);
+  try {
+    return await buildDashboardFromDb(session.supabase, session.userId);
+  } catch (e) {
+    const message = e instanceof Error ? `${e.message}\n${e.stack ?? ""}` : String(e);
+    console.error("dashboard build failed", message);
+    return { ...sampleDashboard, isSample: true, loadError: message.split("\n")[0] };
+  }
 }

@@ -15,6 +15,7 @@ export interface SparklineProps {
 }
 
 export function Sparkline({ points, ariaLabel, color = "var(--accent)", width = 300, height = 50, baseline = true, endpoint = true, step = false, className }: SparklineProps) {
+  if (points.length === 0) return null;
   const { lo, hi } = domain(points.map((p) => p.valueCents), undefined, undefined, 0.12);
   const y = yScale(lo, hi, 6, height - 8);
   const x = xIndex(points.length, 0, width - 4);

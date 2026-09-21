@@ -17,7 +17,7 @@ export default async function CreditPage() {
 
   return (
     <>
-      <TopBar asOf={d.asOf} isSample={d.isSample} />
+      <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <main className="wrap">
         <PageHead
           title="Credit"
@@ -35,7 +35,7 @@ export default async function CreditPage() {
         {d.credit.map((c) => {
           const util = c.statements.map((st) => ({ date: `${st.month}-01`, valueCents: Math.round((st.balanceCents / c.limitCents) * 100) }));
           const avg = Math.round(c.statements.reduce((sum, st) => sum + st.balanceCents, 0) / Math.max(1, c.statements.length));
-          const peak = c.statements.reduce((m, st) => (st.balanceCents > m.balanceCents ? st : m), c.statements[0]);
+          const peak = c.statements.length ? c.statements.reduce((m, st) => (st.balanceCents > m.balanceCents ? st : m), c.statements[0]) : null;
           const tone = c.utilizationPct >= 30 ? "warn" : "accent";
           const mid = Math.floor(util.length / 2);
           return (
@@ -59,7 +59,7 @@ export default async function CreditPage() {
                         <span className="num">{money(c.limitCents)}</span>
                       </div>
                       <p className={s.hint} style={{ marginTop: 18 }}>
-                        Average statement {money(avg)} · highest {money(peak.balanceCents)} in {monthLabel(peak.month)}
+                        Average statement {money(avg)}{peak ? ` · highest ${money(peak.balanceCents)} in ${monthLabel(peak.month)}` : ""}
                       </p>
                     </div>
                   </div>

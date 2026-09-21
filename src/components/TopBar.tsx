@@ -13,7 +13,7 @@ const NAV = [
   { href: "/advisor", label: "Advisor" },
 ];
 
-export function TopBar({ asOf, isSample }: { asOf: string; isSample: boolean }) {
+export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: boolean; loadError?: string }) {
   const pathname = usePathname();
   return (
     <header className={styles.bar}>
@@ -37,6 +37,7 @@ export function TopBar({ asOf, isSample }: { asOf: string; isSample: boolean }) 
           <Link href="/settings" className={styles.settings}>Settings</Link>
         </div>
       </div>
+      {loadError ? <div className={`wrap ${styles.error}`}>Couldn&apos;t build your dashboard from live data — showing sample numbers. {loadError}</div> : null}
     </header>
   );
 }

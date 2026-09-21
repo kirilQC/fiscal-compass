@@ -38,3 +38,4 @@
   .meta { display: none; }
   .nav { gap: 14px; font-size: 13px; }
 }
+.error { padding-block: 8px; font-size: 13px; color: var(--crit); border-top: 1px solid var(--rule); }

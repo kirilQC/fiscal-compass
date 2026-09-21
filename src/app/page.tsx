@@ -8,7 +8,7 @@ export default async function OverviewPage() {
   if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   return (
     <>
-      <TopBar asOf={d.asOf} isSample={d.isSample} />
+      <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <main className="wrap">
         <Hero d={d} />
         <NetWorthSpread d={d} />
