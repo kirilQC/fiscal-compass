@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { env } from "@/lib/env";
+import { stripe } from "@/lib/stripe";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { syncAccount } from "@/lib/sync";
+
+export async function POST(request: Request) {
+  const sig = request.headers.get("stripe-signature");
+  if (!sig) return NextResponse.json({ error: "missing signature" }, { status: 400 });
+  const body = await request.text();
+  let event: Stripe.Event;
+  try {
+    event = stripe().webhooks.constructEvent(body, sig, env("STRIPE_WEBHOOK_SECRET"));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "bad signature" }, { status: 400 });
+  }
+
+  if (
+    event.type === "financial_connections.account.refreshed_balance" ||
+    event.type === "financial_connections.account.refreshed_transactions"
+  ) {
+    const fc = event.data.object as Stripe.FinancialConnections.Account;
+    const admin = createAdminClient();
+    const { data } = await admin.from("accounts").select("id").eq("provider", "stripe").eq("provider_account_id", fc.id).maybeSingle();
+    if (data?.id) await syncAccount(admin, data.id);
+  } else if (event.type === "financial_connections.account.disconnected" || event.type === "financial_connections.account.deactivated") {
+    const fc = event.data.object as Stripe.FinancialConnections.Account;
+    const admin = createAdminClient();
+    await admin.from("accounts").update({ is_active: false }).eq("provider", "stripe").eq("provider_account_id", fc.id);
+  }
+  return NextResponse.json({ received: true });
+}

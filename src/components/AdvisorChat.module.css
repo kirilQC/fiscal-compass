@@ -1,0 +1,173 @@
+.page {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: calc(100vh - 57px);
+}
+
+.threads {
+  border-right: 1px solid var(--rule);
+  padding-block: 28px;
+  padding-right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.threadsHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.newBtn {
+  font-size: 12.5px;
+  color: var(--accent);
+  border-bottom: 1px solid transparent;
+}
+.newBtn:hover { border-bottom-color: var(--accent); }
+.threadList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.threadList li { display: flex; align-items: center; border-bottom: 1px solid var(--rule); }
+.threadBtn {
+  flex: 1;
+  text-align: left;
+  padding: 12px 0;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.threadTitle { font-size: 14px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.threadTime { font-size: 11.5px; color: var(--ink3); }
+.threadActive .threadTitle { color: var(--ink); font-weight: 500; }
+.threadActive { box-shadow: inset 2px 0 0 var(--accent); padding-left: 10px; }
+.threadDel { color: var(--ink3); font-size: 16px; padding: 4px 6px; opacity: 0; }
+.threadList li:hover .threadDel, .threadDel:focus-visible { opacity: 1; }
+.threadDel:hover { color: var(--crit); }
+.threadEmpty { font-size: 13px; color: var(--ink3); padding: 12px 0; }
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  padding-left: 40px;
+  min-width: 0;
+}
+.mobileBar { display: none; }
+
+.messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-block: 36px 24px;
+}
+.empty {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1.3;
+  color: var(--ink2);
+  max-width: 28em;
+  margin: 8vh 0 0;
+}
+.who {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.ai { max-width: 64ch; }
+.ai .body {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.ai .body p { margin: 0 0 0.75em; }
+.ai .body p:last-child { margin-bottom: 0; }
+.ai .body ul, .ai .body ol { margin: 0 0 0.75em; padding-left: 1.2em; }
+.ai .body li { margin-bottom: 0.25em; }
+.ai .body strong { font-weight: 600; }
+.ai .body code {
+  font-family: var(--sans);
+  font-size: 0.78em;
+  font-variant-numeric: tabular-nums;
+  background: var(--accent-faint);
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+.me {
+  align-self: flex-end;
+  max-width: 50ch;
+  text-align: right;
+}
+.me .body {
+  display: inline-block;
+  text-align: left;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--accent-faint);
+  padding: 10px 14px;
+  white-space: pre-wrap;
+}
+.thinking { color: var(--ink3); font-style: italic; }
+
+.composerWrap {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  padding-block: 14px 22px;
+  border-top: 1px solid var(--rule);
+}
+.chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.chips button {
+  border: 1px solid var(--rule2);
+  border-radius: 999px;
+  color: var(--ink2);
+  font-size: 13px;
+  padding: 7px 14px;
+  text-align: left;
+}
+.chips button:hover, .chips button:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  border-bottom: 1px solid var(--rule2);
+}
+.composer:focus-within { border-bottom-color: var(--accent); }
+.composer textarea {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  resize: none;
+  padding: 10px 0;
+  font-size: 16px;
+  line-height: 1.4;
+  max-height: 200px;
+}
+.composer textarea:focus { outline: none; }
+.composer textarea:disabled { color: var(--ink3); }
+.composer button {
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 12px 0;
+}
+.composer button:disabled { color: var(--ink3); cursor: default; }
+
+@media (max-width: 760px) {
+  .page { grid-template-columns: 1fr; min-height: 0; }
+  .threads { display: none; border-right: 0; border-bottom: 1px solid var(--rule); padding: 16px 0; }
+  .threadsOpen { display: flex; }
+  .thread { padding-left: 0; }
+  .mobileBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-block: 12px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .mobileToggle { font-size: 13px; color: var(--ink2); }
+  .messages { padding-block: 24px 16px; }
+  .empty { font-size: 22px; }
+  .ai .body { font-size: 17px; }
+}

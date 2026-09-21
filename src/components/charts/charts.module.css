@@ -1,0 +1,72 @@
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.ring {
+  width: auto;
+}
+.ringLabel {
+  font-family: var(--serif);
+  font-size: 30px;
+  fill: var(--ink);
+}
+.note {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  fill: var(--ink2);
+}
+.caption {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ink3);
+  margin-top: 8px;
+}
+.legend i {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  background: var(--accent);
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.track {
+  height: 2px;
+  background: var(--rule2);
+  position: relative;
+  margin: 24px 0 8px;
+}
+.track > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+}
+.pace {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 1px;
+  background: var(--ink);
+}
+.pace::after {
+  content: attr(data-label);
+  position: absolute;
+  top: -18px;
+  left: 4px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  white-space: nowrap;
+}
