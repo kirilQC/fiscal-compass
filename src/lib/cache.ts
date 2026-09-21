@@ -4,7 +4,7 @@ import { buildDashboardFromDb } from "./data-db";
 import { createAdminClient } from "./supabase/admin";
 
 export const DASHBOARD_TAG = "dashboard";
-const TTL_SECONDS = 600;
+const TTL_SECONDS = 60;
 
 // Cached per user; reads through the service-role client so no request cookies are touched inside the cache scope.
 export function buildCached(userId: string): Promise<Dashboard> {

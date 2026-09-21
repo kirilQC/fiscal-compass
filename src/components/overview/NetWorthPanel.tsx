@@ -69,7 +69,8 @@ export function NetWorthPanel({
   const x = (i: number) => (n <= 1 ? padL : padL + (i / (n - 1)) * (W - padL - padR));
   const y = (v: number) => bottom - ((v - yLo) / (yHi - yLo || 1)) * (bottom - top);
 
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.valueCents).toFixed(1)}`).join(" ");
+  const coords = points.map((p, i) => [x(i), y(p.valueCents)] as const);
+  const linePath = smoothPath(coords);
   const areaPath = n ? `${linePath} L${x(n - 1).toFixed(1)},${bottom} L${x(0).toFixed(1)},${bottom} Z` : "";
 
   const monthMarks: { i: number; label: string }[] = [];
@@ -236,4 +237,32 @@ export function NetWorthPanel({
       )}
     </section>
   );
+}
+
+// Monotone cubic interpolation: smooth without overshooting past real values.
+function smoothPath(pts: readonly (readonly [number, number])[]): string {
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n < 3) return pts.map(([px, py], i) => `${i === 0 ? "M" : "L"}${px.toFixed(1)},${py.toFixed(1)}`).join(" ");
+  const dx: number[] = [], dy: number[] = [], m: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(pts[i + 1][0] - pts[i][0]);
+    dy.push(pts[i + 1][1] - pts[i][1]);
+    m.push(dy[i] / (dx[i] || 1));
+  }
+  const t: number[] = [m[0]];
+  for (let i = 1; i < n - 1; i++) {
+    if (m[i - 1] * m[i] <= 0) t.push(0);
+    else {
+      const w1 = 2 * dx[i] + dx[i - 1], w2 = dx[i] + 2 * dx[i - 1];
+      t.push((w1 + w2) / (w1 / m[i - 1] + w2 / m[i]));
+    }
+  }
+  t.push(m[n - 2]);
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += ` C${(pts[i][0] + h).toFixed(1)},${(pts[i][1] + t[i] * h).toFixed(1)} ${(pts[i + 1][0] - h).toFixed(1)},${(pts[i + 1][1] - t[i + 1] * h).toFixed(1)} ${pts[i + 1][0].toFixed(1)},${pts[i + 1][1].toFixed(1)}`;
+  }
+  return d;
 }

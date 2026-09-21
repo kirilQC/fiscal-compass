@@ -25,7 +25,7 @@
   --cat-8: #e66767;
   --serif: var(--font-cormorant), "Cormorant Garamond", Georgia, "Times New Roman", serif;
   --sans: var(--font-worksans), "Work Sans", system-ui, -apple-system, "Helvetica Neue", sans-serif;
-  --max: 1240px;
+  --max: 1680px;
   --gutter: clamp(16px, 4vw, 48px);
   color-scheme: dark;
 }
