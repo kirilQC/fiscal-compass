@@ -2,6 +2,7 @@ import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
 import { Onboarding } from "@/components/Onboarding";
 import { LineChart, Ring } from "@/components/charts";
+import { HoldingCard } from "@/components/HoldingCard";
 import { money, monthLabel, pct } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import o from "@/components/overview/overview.module.css";
@@ -106,7 +107,11 @@ export default async function InvestmentsPage() {
           </div>
           <div>
             <h2 className={s.h2}>Holdings</h2>
-            <p className={s.sub}>value · weight{hasTargets ? " · target · drift" : ""}</p>
+            <p className={s.sub}>price per share · shares · value · three-month price</p>
+            {d.holdings.map((h) => (
+              <HoldingCard key={h.id} h={h} />
+            ))}
+            <p className={s.sub} style={{ marginTop: 20 }}>value · weight{hasTargets ? " · target · drift" : ""}</p>
             <table className={s.table}>
               <thead>
                 <tr>

@@ -52,7 +52,7 @@ export function buildContext(d: Dashboard): string {
   if (d.holdings.length) {
     L.push(`\nInvestments: ${money(d.investmentTotalCents)}${d.investmentChangeMtdPct != null ? ` (${pct(d.investmentChangeMtdPct)} MTD)` : ""}`);
     for (const h of d.holdings) {
-      L.push(`- ${h.symbol}${h.name ? ` ${h.name}` : ""}: ${money(h.valueCents)}, ${h.weightPct}% of portfolio${h.targetPct != null ? ` (target ${h.targetPct}%)` : ""}${h.changeMtdPct != null ? `, ${pct(h.changeMtdPct)} MTD` : ""}`);
+      L.push(`- ${h.symbol}${h.name ? ` ${h.name}` : ""}: ${money(h.valueCents)}, ${h.weightPct}% of portfolio${h.targetPct != null ? ` (target ${h.targetPct}%)` : ""}${h.changeMtdPct != null ? `, ${pct(h.changeMtdPct)} MTD` : ""}${h.priceCents != null ? `; price $${(h.priceCents / 100).toFixed(2)} (close ${h.priceAsOf})${h.changeDayPct != null ? `, ${pct(h.changeDayPct)} today` : ""}${h.change3mPct != null ? `, ${pct(h.change3mPct)} over 3 months` : ""}${h.impliedShares != null ? `, about ${h.impliedShares.toFixed(1)} shares` : ""}` : ""}`);
     }
   }
 

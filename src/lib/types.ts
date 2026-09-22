@@ -29,6 +29,12 @@ export interface Holding {
   weightPct: number;
   targetPct: number | null;
   series: SeriesPoint[];
+  priceCents: number | null;
+  priceAsOf: string | null;
+  changeDayPct: number | null;
+  change3mPct: number | null;
+  impliedShares: number | null;
+  priceSeries: SeriesPoint[];
 }
 
 export interface CategoryBudget {

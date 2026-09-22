@@ -3,6 +3,7 @@ import { Ring, Sparkline } from "@/components/charts";
 import { money } from "@/lib/format";
 import { prettyName } from "@/components/sections/names";
 import s from "./overview.module.css";
+import { HoldingCard } from "@/components/HoldingCard";
 
 const EQUITY = new Set(["us_equity", "intl_equity"]);
 const opacityAt = (i: number) => Math.max(0.32, 1 - i * 0.24);
@@ -77,6 +78,9 @@ export function InvestmentsSpread({ d }: { d: Dashboard }) {
             ))}
           </div>
         </div>
+        {holdings.map((h) => (
+          <HoldingCard key={h.id} h={h} />
+        ))}
         {hasTargets ? (
           <div className={s.meta} style={{ marginTop: 22 }}>
             <span>target {targets.join(" / ")}</span>

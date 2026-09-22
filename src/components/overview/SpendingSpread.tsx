@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
-import { BarChart, Donut, Track, toneVar } from "@/components/charts";
+import { BarChart, Pie, Track, toneVar } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
-import { PlanDonut } from "./PlanDonut";
+import { PlanDonut, actualSlices } from "./PlanDonut";
 import { toneOf } from "./util";
 import s from "./overview.module.css";
 
@@ -48,11 +48,7 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
   const typicalIncome = fullMonths.length ? fullMonths[fullMonths.length - 1].incomeCents : 0;
   const anomaly = d.recentTransactions.find((t) => t.anomalyNote);
   const categories = b.categories.filter((c) => c.limitCents > 0 || c.spentCents > 0);
-  const slices = b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents }));
   const plan = d.plan ?? null;
-  const plannedSlices = plan
-    ? Object.entries(plan.items.filter((c) => !c.isReimbursed).reduce<Record<string, number>>((acc, i) => { const k = i.isDebtPayment ? "Debt" : i.category; acc[k] = (acc[k] ?? 0) + i.expectedCents; return acc; }, {})).map(([label, value]) => ({ label, value }))
-    : [];
   const budgetWord = b.source === "plan" ? "planned essentials" : b.isSuggested ? "suggested budget" : "budget";
 
   return (
@@ -97,20 +93,16 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
       <div>
         {plan ? (
           <div className={s.subOffset}>
-            <PlanDonut
-              planned={{ label: "Where your money is planned to go", slices: plannedSlices, totalCents: plan.totalCents, centerSub: "planned" }}
-              actual={{ label: `Where ${monthName} went`, slices, totalCents: b.spentCents, centerSub: "spent" }}
-            />
+            <PlanDonut items={plan.items} categories={b.categories} monthName={monthName} size={420} />
             <p className={s.meta} style={{ marginTop: 14 }}>
               <span>Leftover after essentials</span>
               <span className={`num ${plan.leftoverCents < 0 ? "crit" : ""}`}>{money(plan.leftoverCents)} of {money(plan.incomeCents)}</span>
             </p>
           </div>
         ) : (
-          <>
-            <p className={`${s.sub} ${s.subOffset}`}>Where {monthName} went · {money(b.spentCents)}</p>
-            <Donut slices={slices} ariaLabel={`Spending by category, ${monthName}`} formatValue={money} size={220} thickness={50} maxSlices={6} />
-          </>
+          <div className={s.subOffset}>
+            <Pie slices={actualSlices(b.categories)} title={`Where ${monthName} went (Total: ${money(b.spentCents)})`} ariaLabel={`Spending by group, ${monthName}`} formatValue={money} size={420} />
+          </div>
         )}
         {b.isSuggested ? <div style={{ marginTop: 34 }}><SaveSuggestedBudget budget={b} compact /></div> : <p className={s.sub} style={{ marginTop: 34 }}>Categories · of budget</p>}
         {categories.map((c) => {

@@ -68,6 +68,17 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const balances = (balancesQ.data ?? []) as BalanceRow[];
   const txns = (txnsQ.data ?? []) as TxnRow[];
   const holdingRows = (holdingsQ.data ?? []) as HoldingRow[];
+  const symbols = [...new Set(holdingRows.map((h) => h.symbol.toUpperCase()))];
+  const since3m = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 3, now.getUTCDate())));
+  const pricesQ = symbols.length
+    ? await supabase.from("prices").select("symbol,as_of,close_cents").in("symbol", symbols).gte("as_of", since3m).order("as_of")
+    : { data: [] };
+  const pricesBySymbol = new Map<string, { as_of: string; close_cents: number }[]>();
+  for (const r of (pricesQ.data ?? []) as { symbol: string; as_of: string; close_cents: number }[]) {
+    const list = pricesBySymbol.get(r.symbol) ?? [];
+    list.push(r);
+    pricesBySymbol.set(r.symbol, list);
+  }
   const holdingDaily = (holdingsDailyQ.data ?? []) as HoldingDailyRow[];
   const goalRows = (goalsQ.data ?? []) as GoalRow[];
   const paychecks = (paychecksQ.data ?? []) as PaycheckRow[];
@@ -232,6 +243,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     weightPct: investmentTotalCents ? (latest / investmentTotalCents) * 100 : 0,
     targetPct: h.target_pct,
     series,
+    ...priceFields(pricesBySymbol.get(h.symbol.toUpperCase()) ?? [], latest),
   }));
   const invPrev = accountsOut.filter((a) => a.kind === "investment").reduce((s, a) => s + (a.balanceCents - (a.changeMtdCents ?? 0)), 0);
   const investmentChangeMtdPct = invPrev ? ((investmentTotalCents - invPrev) / invPrev) * 100 : null;
@@ -502,4 +514,19 @@ function monthsBetween(a: Date, b: Date) {
 
 function markCommitments<T extends { category: string }>(categories: T[], tithePct: number): (T & { isCommitment?: boolean })[] {
   return categories.map((c) => (c.category === "Giving" && tithePct > 0 ? { ...c, isCommitment: true } : c));
+}
+
+function priceFields(rows: { as_of: string; close_cents: number }[], valueCents: number) {
+  if (!rows.length) return { priceCents: null, priceAsOf: null, changeDayPct: null, change3mPct: null, impliedShares: null, priceSeries: [] as SeriesPoint[] };
+  const last = rows[rows.length - 1];
+  const prev = rows.length > 1 ? rows[rows.length - 2] : null;
+  const first = rows[0];
+  return {
+    priceCents: last.close_cents,
+    priceAsOf: last.as_of,
+    changeDayPct: prev ? ((last.close_cents - prev.close_cents) / prev.close_cents) * 100 : null,
+    change3mPct: first !== last ? ((last.close_cents - first.close_cents) / first.close_cents) * 100 : null,
+    impliedShares: last.close_cents ? valueCents / last.close_cents : null,
+    priceSeries: rows.map((r) => ({ date: r.as_of, valueCents: r.close_cents })),
+  };
 }

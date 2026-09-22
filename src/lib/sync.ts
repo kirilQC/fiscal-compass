@@ -4,6 +4,7 @@ import { stripe, currentBalanceCents } from "./stripe";
 import { revalidateDashboard } from "./cache";
 import { categorize, categorizeMerchantsWithAI, cleanMerchant, normalizeMerchant, type Rule } from "./categorize";
 import { PAYROLL_RE } from "./settings";
+import { refreshPrices } from "./prices";
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -33,6 +34,7 @@ export async function syncUser(admin: SupabaseClient, userId: string) {
     detail.ai = await categorizeUnknownWithAI(admin, userId);
     detail.paychecks = await detectPaychecks(admin, userId);
     await carryForwardHoldings(admin, userId);
+    detail.prices = await refreshPrices(admin, userId);
   } catch (e) {
     status = "error";
     detail.error = e instanceof Error ? e.message : String(e);

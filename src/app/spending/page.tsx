@@ -1,7 +1,7 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
 import { Onboarding } from "@/components/Onboarding";
-import { BarChart, Donut, Track } from "@/components/charts";
+import { BarChart, BulletChart, Pie, Track } from "@/components/charts";
 import { money, monthLabel } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import { BudgetEditor } from "@/components/sections/BudgetEditor";
@@ -9,7 +9,8 @@ import { MonthLedger } from "@/components/sections/MonthLedger";
 import { RulesPanel } from "@/components/sections/RulesPanel";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { PlanPanel } from "@/components/sections/PlanPanel";
-import { PlanDonut } from "@/components/overview/PlanDonut";
+import { PlanDonut, actualSlices } from "@/components/overview/PlanDonut";
+import { planCategoryLimits } from "@/lib/plan";
 import s from "@/components/sections/sections.module.css";
 
 const DEFAULT_CATEGORIES = ["Groceries", "Dining", "Transport", "Shopping", "Subscriptions", "Utilities", "Housing", "Insurance", "Health", "Entertainment", "Giving", "Business", "Fees", "Travel", "Other"];
@@ -33,9 +34,6 @@ export default async function SpendingPage() {
   const typicalIncome = paidMonths.length ? paidMonths[paidMonths.length - 1].incomeCents : 0;
   const hasIncome = flows.some((f) => f.incomeCents > 0);
   const budgetWord = b?.source === "plan" ? "planned essentials" : b?.isSuggested ? "suggested budget" : "budget";
-  const plannedSlices = plan
-    ? Object.entries(plan.items.filter((i) => !i.isReimbursed).reduce<Record<string, number>>((acc, i) => { const k = i.isDebtPayment ? "Debt" : i.category; acc[k] = (acc[k] ?? 0) + i.expectedCents; return acc; }, {})).map(([label, value]) => ({ label, value }))
-    : [];
   const planCounts = plan ? plan.items.filter((i) => !i.isReimbursed).reduce((acc, i) => { acc[i.status]++; return acc; }, { paid: 0, due: 0, overdue: 0, varies: 0 }) : null;
 
   return (
@@ -80,18 +78,12 @@ export default async function SpendingPage() {
               </p>
             </div>
             <div>
-              <h2 className={s.h2}>Where it goes</h2>
-              <p className={s.sub}>{plan ? "where your money is planned to go, beside where it actually went" : `${monthName} spending by category`}</p>
+              <h2 className={s.h2}>Distribution</h2>
+              <p className={s.sub}>{plan ? "monthly essentials as planned, or where the month actually went" : `${monthName} spending by group`}</p>
               {plan ? (
-                <PlanDonut
-                  planned={{ label: "Planned each month", slices: plannedSlices, totalCents: plan.totalCents, centerSub: "planned" }}
-                  actual={{ label: `Where ${monthName} went`, slices: b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents })), totalCents: b.spentCents, centerSub: "spent" }}
-                  size={240}
-                  thickness={54}
-                  maxSlices={7}
-                />
+                <PlanDonut items={plan.items} categories={b.categories} monthName={monthName} size={520} />
               ) : (
-                <Donut slices={b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents }))} ariaLabel={`Spending by category, ${monthName}`} formatValue={money} size={240} thickness={54} maxSlices={7} centerLabel={money(b.spentCents)} centerSub="spent" />
+                <Pie slices={actualSlices(b.categories)} title={`Where ${monthName} went (Total: ${money(b.spentCents)})`} ariaLabel={`Spending by group, ${monthName}`} formatValue={money} size={520} />
               )}
             </div>
           </section>
@@ -115,6 +107,19 @@ export default async function SpendingPage() {
               {planCounts ? <div><b className="num">{planCounts.paid} / {planCounts.paid + planCounts.due + planCounts.overdue}</b><span>bills paid{planCounts.overdue ? ` · ${planCounts.overdue} overdue` : ""}</span></div> : null}
             </div>
             <PlanPanel items={plan.items} categories={categories} />
+            {b ? (
+              <div className={s.bullets}>
+                <h3 className={s.h3}>Plan against actual</h3>
+                <p className={s.sub}>each category&apos;s planned amount as a grey track, what actually posted in rose, deeper red where it ran over · sorted by variance</p>
+                <BulletChart
+                  ariaLabel={`Planned versus actual spending by category, ${monthName}`}
+                  formatValue={money}
+                  rows={Array.from(new Set([...b.categories.map((c) => c.category), ...planCategoryLimits(plan).keys()]))
+                    .filter((c) => c !== "Reimbursed")
+                    .map((c) => ({ label: c, actual: b.categories.find((x) => x.category === c)?.spentCents ?? 0, planned: planCategoryLimits(plan).get(c) ?? 0 }))}
+                />
+              </div>
+            ) : null}
           </section>
         ) : null}
 
