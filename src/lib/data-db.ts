@@ -204,7 +204,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   if (investAccounts.length === 1 && holdingRows.length === 1) {
     const list = longPricesBySymbol.get(holdingRows[0].symbol.toUpperCase()) ?? [];
     const latestClose = list.at(-1)?.close_cents;
-    const todayValue = investTotals.get(todayIso) ?? 0;
+    const todayValue = investAccounts.reduce((t, a) => t + (balanceAt(a.id, todayIso) ?? 0), 0);
     if (latestClose && todayValue > 0) {
       const shares = todayValue / latestClose;
       let close: number | null = null;
