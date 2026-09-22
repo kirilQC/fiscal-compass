@@ -101,8 +101,8 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
     if (!cached) return { title: slice.label, meta, loading: true, totalCents: slice.value };
     const rows: PopupRow[] = cached
       .filter((t) => !t.isTransfer && !t.isIncome && t.amountCents < 0 && t.category !== "Reimbursed" && groupForCategory(t.category) === slice.label)
-      .sort((a, z) => (a.postedOn < z.postedOn ? 1 : a.postedOn > z.postedOn ? -1 : 0))
-      .map((t) => ({ postedOn: t.postedOn, merchant: t.merchant, amountCents: t.amountCents }));
+      .sort((a, z) => a.amountCents - z.amountCents)
+      .map((t) => ({ postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents }));
     return { title: slice.label, meta, rows, totalCents: slice.value, totalCount: rows.length };
   }, [hover, pieSlices, cached, spent, left, income]);
 
@@ -226,4 +226,10 @@ function monthRange(ym: string) {
   const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
   const f = (d: Date) => d.toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
   return `${f(start)} – ${f(end)}`;
+}
+
+function prettyMerchant(m: string) {
+  const cleaned = m.replace(/^(www\.|tst\*|sq \*|fh\*)/i, "").replace(/\.com$/i, "").replace(/\s+/g, " ").trim();
+  if (cleaned !== cleaned.toUpperCase()) return cleaned;
+  return cleaned.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (_, p, c) => p + c.toUpperCase());
 }
