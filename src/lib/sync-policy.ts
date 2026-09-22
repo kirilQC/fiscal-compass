@@ -1,18 +1,13 @@
 import type Stripe from "stripe";
 
-// Stripe Financial Connections bills per paid refresh, so refreshes run on a fixed cadence
-// and everything else is derived from data we already hold.
+// Stripe Financial Connections pricing (stripe.com/pricing): balances $0.10 per successful refresh call;
+// transactions a flat $0.30 per institution per account holder per month regardless of refresh count.
+// So accounts stay subscribed to Stripe's daily transaction refresh, and balance refreshes are rationed.
 export const COST_BALANCE_USD = 0.1;
-export const COST_TRANSACTIONS_USD = 0.3;
+export const COST_TRANSACTIONS_INSTITUTION_MONTH_USD = 0.3;
 export const BALANCE_INTERVAL_DAYS = 7;
-export const TRANSACTION_INTERVAL_DAYS: Record<string, number> = {
-  checking: 3,
-  savings: 3,
-  credit: 3,
-  investment: 30,
-  loan: 30,
-  other: 7,
-};
+// Explicit transaction refreshes are only needed when the daily subscription has gone quiet.
+export const TRANSACTION_STALE_DAYS = 3;
 
 export type SyncMode = "cron" | "free" | "force";
 
@@ -27,7 +22,7 @@ export const emptyPaid = (): PaidCounts => ({ balance: 0, transactions: 0, estUs
 export function addPaid(into: PaidCounts, from: PaidCounts) {
   into.balance += from.balance;
   into.transactions += from.transactions;
-  into.estUsd = Math.round((into.balance * COST_BALANCE_USD + into.transactions * COST_TRANSACTIONS_USD) * 100) / 100;
+  into.estUsd = Math.round(into.balance * COST_BALANCE_USD * 100) / 100;
 }
 
 export function isDue(lastAttemptedUnix: number | null | undefined, fallbackIso: string | null, intervalDays: number, now = Date.now()) {

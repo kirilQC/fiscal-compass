@@ -7,7 +7,8 @@ import { PAYROLL_RE } from "./settings";
 import { refreshPrices } from "./prices";
 import {
   BALANCE_INTERVAL_DAYS,
-  TRANSACTION_INTERVAL_DAYS,
+  TRANSACTION_STALE_DAYS,
+  COST_TRANSACTIONS_INSTITUTION_MONTH_USD,
   addPaid,
   emptyPaid,
   isDue,
@@ -98,7 +99,15 @@ export async function monthToDateCost(admin: SupabaseClient, userId: string) {
     addPaid(totals, d.paid);
     refreshes.push({ at: r.started_at, balance: d.paid.balance, transactions: d.paid.transactions, trigger: d.trigger ?? "cron" });
   }
-  return { monthUsd: totals.estUsd, counts: { balance: totals.balance, transactions: totals.transactions }, refreshes };
+  const { data: inst } = await admin.from("accounts").select("institution").eq("user_id", userId).eq("provider", "stripe").eq("is_active", true);
+  const institutions = new Set((inst ?? []).map((r) => r.institution)).size;
+  const transactionsUsd = Math.round(institutions * COST_TRANSACTIONS_INSTITUTION_MONTH_USD * 100) / 100;
+  return {
+    monthUsd: Math.round((totals.estUsd + transactionsUsd) * 100) / 100,
+    counts: { balance: totals.balance, transactions: totals.transactions, institutions },
+    breakdown: { balancesUsd: totals.estUsd, transactionsUsd },
+    refreshes,
+  };
 }
 
 // Payroll deposits become paychecks automatically; nothing is ever entered by hand.
@@ -182,7 +191,7 @@ async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Ru
 
   const txnDue =
     mode === "force" ||
-    (mode === "cron" && isDue(account.transaction_refresh?.last_attempted_at, lastRunIso, TRANSACTION_INTERVAL_DAYS[a.kind] ?? 7));
+    (mode === "cron" && isDue(account.transaction_refresh?.last_attempted_at, lastRunIso, TRANSACTION_STALE_DAYS));
   if (txnDue && account.transaction_refresh?.status !== "pending") {
     try {
       account = await refreshAndWait(s, fcId, "transactions");

@@ -13,7 +13,7 @@ export function SyncNow({ accountCount, monthUsd }: { accountCount: number; mont
   const router = useRouter();
   const [state, setState] = useState<Msg>({ busy: false });
   const [confirm, setConfirm] = useState(false);
-  const est = (accountCount * 0.4).toFixed(2);
+  const est = (accountCount * 0.1).toFixed(2);
 
   async function run(force: boolean) {
     setConfirm(false);
@@ -38,7 +38,7 @@ export function SyncNow({ accountCount, monthUsd }: { accountCount: number; mont
       </span>
       {confirm ? (
         <span className={s.hint} style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          Fresh balances and transactions for {accountCount} accounts · about ${est} in Stripe fees.
+          Fresh balances and transactions for {accountCount} accounts · about ${est} in Stripe fees (transactions are a flat monthly fee, balances $0.10 each).
           <button type="button" className={`${s.button} ${s.ghost}`} onClick={() => run(true)}>Pull · ${est}</button>
           <button type="button" className={s.linkBtn} onClick={() => setConfirm(false)}>Cancel</button>
         </span>

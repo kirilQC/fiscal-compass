@@ -56,8 +56,9 @@ export async function POST(request: Request) {
         id = data.id;
       }
       linked.push(id);
+      // Transactions are a flat monthly fee per institution, so the daily subscription is the cheapest way to stay current.
+      try { await s.financialConnections.accounts.subscribe(fc.id, { features: ["transactions"] }); } catch { /* feature may be unavailable */ }
     }
-    // One paid refresh per newly linked account so it populates; no automatic subscription (Stripe bills per refresh).
     const admin = createAdminClient();
     const { data: run } = await admin.from("sync_runs").insert({ user_id: userId, detail: { trigger: "link" } }).select("id").single();
     const results = await Promise.all(linked.map((id) => syncAccount(admin, id, "force")));

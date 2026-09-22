@@ -62,7 +62,7 @@ export default async function SettingsPage() {
               <LinkAccountButton label="Link a bank through Stripe" />
               <SyncNow accountCount={d.accounts.filter((a) => a.kind !== "other").length} monthUsd={monthUsd} />
             </div>
-            <p className={s.hint} style={{ marginTop: 14 }}>Each morning: checking and card transactions every third day, Fidelity and the loan monthly, balances weekly ($0.30 per transaction pull, $0.10 per balance). Between pulls, balances are derived from transactions already fetched.</p>
+            <p className={s.hint} style={{ marginTop: 14 }}>Transactions refresh daily through Stripe for a flat $0.30 per bank per month. Balances are refreshed weekly at $0.10 each and derived from transactions in between.</p>
           </div>
           <div>
             <h2 className={s.h2}>Add an account by hand</h2>
