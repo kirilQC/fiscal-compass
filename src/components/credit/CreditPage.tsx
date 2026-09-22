@@ -25,11 +25,12 @@ type Txn = {
 type Props = { credit: CreditSummary[]; accounts: Account[]; month: string };
 
 const PLACEHOLDERS = ["Card 2", "Card 3"];
-const TINTS = ["#f7cdd6", "#f1aab8", "#ec95a6", "#e46d84", "#cc5068", "#ad4659", "#8f3c4d"];
 
 export function CreditPage({ credit, accounts, month }: Props) {
-  const [selected, setSelected] = useState<string>(credit[0]?.accountId ?? "all");
+  const [selected, setSelectedRaw] = useState<string>(credit[0]?.accountId ?? "all");
+  const setSelected = (id: string) => { setSelectedRaw(id); setShown(10); };
   const [txns, setTxns] = useState<Txn[] | null>(null);
+  const [shown, setShown] = useState(10);
 
   useEffect(() => {
     let live = true;
@@ -65,17 +66,9 @@ export function CreditPage({ credit, accounts, month }: Props) {
   }, [cards]);
   const avg = statements.length ? Math.round(statements.reduce((t, st) => t + st.balanceCents, 0) / statements.length) : 0;
   const utilSeries = hasLimit ? statements.map((st) => ({ date: `${st.month}-01`, valueCents: Math.round((st.balanceCents / limit) * 100) })) : [];
-  const toThirty = hasLimit ? owed - Math.round(limit * 0.3) : 0;
 
   const rows = useMemo(() => (txns ?? []).filter((t) => cardNames.has(t.accountName)).sort((a, z) => (a.postedOn < z.postedOn ? 1 : a.postedOn > z.postedOn ? -1 : 0)), [txns, cardNames]);
-  const cats = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const t of rows) m.set(t.category, (m.get(t.category) ?? 0) - t.amountCents);
-    return [...m.entries()].sort((a, z) => z[1] - a[1]).slice(0, 7);
-  }, [rows]);
-  const catTotal = cats.reduce((t, [, v]) => t + v, 0);
 
-  const acct = !isAll ? acctById.get(selected) : undefined;
   const title = isAll ? "All cards" : prettyName(byId.get(selected)?.name ?? "");
   const monthName = new Date(`${month}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
 
@@ -141,6 +134,11 @@ export function CreditPage({ credit, accounts, month }: Props) {
 
               <div className={s.stats}>
                 <div className={s.kv}>
+                  <span className={s.k}>Credit limit</span>
+                  <span className={`${s.v} num`}>{hasLimit ? money(limit) : "—"}</span>
+                  <span className={s.sm}>{hasLimit ? (isAll ? "combined" : "on this card") : <Link href="/settings">set the limit in Settings</Link>}</span>
+                </div>
+                <div className={s.kv}>
                   <span className={s.k}>Utilization</span>
                   <span className={`${s.v} num`}>{util === null ? "—" : `${util}%`}</span>
                   <span className={s.sm}>{hasLimit ? <>of {money(limit)} limit</> : <Link href="/settings">set the limit in Settings</Link>}</span>
@@ -157,23 +155,6 @@ export function CreditPage({ credit, accounts, month }: Props) {
                 </div>
               </div>
 
-              {util !== null ? (
-                <p className={s.note}>
-                  {util < 10 ? (
-                    <>You&apos;re at <b>{util}%</b> — under the 10% that scores best. Paid in full each month, this card is doing exactly what it should.</>
-                  ) : util < 30 ? (
-                    <>You&apos;re at <b>{util}%</b>. Under 30% is fine; under 10% is ideal. Paying <b>{money(owed - Math.round(limit * 0.1))}</b> before the statement closes gets you there.</>
-                  ) : (
-                    <>You&apos;re at <b>{util}%</b> — above the 30% line where scores start to slip. A payment of <b>{money(toThirty)}</b> brings it under.</>
-                  )}
-                </p>
-              ) : null}
-
-              <div className={s.pills}>
-                {util !== null && util >= 30 ? <span className={s.pill}>Pay {money(toThirty)} → under 30%</span> : null}
-                <span className={s.ghost}>{acct?.loanApr != null ? `${acct.loanApr}% APR` : "APR — add in Settings"}</span>
-                <span className={s.ghost}>{cards.length === 1 && cards[0].dueOn ? `Due ${dateLabel(cards[0].dueOn)}` : "Due date — add in Settings"}</span>
-              </div>
             </div>
 
             <div>
@@ -192,7 +173,6 @@ export function CreditPage({ credit, accounts, month }: Props) {
                   endpointLabel={(v) => `${Math.round(v)}%`}
                   references={[
                     { value: 30, label: "30% keep below", color: "var(--ink3)", dashed: true },
-                    { value: 10, label: "10% ideal", color: "var(--good)", dashed: true },
                   ]}
                   xLabel={(p) => monthLabel(p.date.slice(0, 7))}
                 />
@@ -238,53 +218,28 @@ export function CreditPage({ credit, accounts, month }: Props) {
 
           <section className={s.two}>
             <div>
-              <h2 className={s.h2}>On the card{isAll ? "s" : ""}</h2>
+              <h2 className={s.h2}>Recent</h2>
               {txns === null ? (
                 <p className={s.hint}>Loading {monthName}…</p>
               ) : rows.length === 0 ? (
                 <p className={s.hint}>Nothing on the card{isAll ? "s" : ""} yet in {monthName}.</p>
               ) : (
-                <table className={s.table}>
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Merchant</th>
-                      <th className={s.r}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.slice(0, 40).map((t) => (
-                      <tr key={t.id} className={t.status === "pending" ? s.pending : undefined}>
-                        <td className={`${s.date} num`}>{dateLabel(t.postedOn)}</td>
-                        <td>
-                          {prettyMerchant(t.merchant)}
-                          <span className={s.tag}>{t.category}</span>
-                          {isAll ? <span className={s.acct}>{prettyName(t.accountName)}</span> : null}
-                          {t.status === "pending" ? <span className={s.acct}>pending</span> : null}
-                        </td>
-                        <td className={`${s.r} num`}>−{moneyExact(Math.abs(t.amountCents))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <TxnTable rows={rows.slice(0, shown)} isAll={isAll} />
+                  {rows.length > shown ? (
+                    <button type="button" className={s.more} onClick={() => setShown(shown + 10)}>View 10 more</button>
+                  ) : null}
+                </>
               )}
             </div>
             <div>
-              <h2 className={s.h2}>This cycle by category</h2>
-              {cats.length === 0 ? (
-                <p className={s.hint}>Categories appear once there is spend on the card this month.</p>
+              <h2 className={s.h2}>Biggest this month</h2>
+              {txns === null ? (
+                <p className={s.hint}>Loading…</p>
+              ) : rows.length === 0 ? (
+                <p className={s.hint}>Nothing yet in {monthName}.</p>
               ) : (
-                <div className={s.cats}>
-                  {cats.map(([name, v], i) => (
-                    <div className={s.cat} key={name}>
-                      <span>{name}</span>
-                      <span className={`num ${s.muted}`}>{money(v)}</span>
-                      <span className={s.bar}>
-                        <i style={{ width: `${catTotal ? (v / catTotal) * 100 : 0}%`, background: TINTS[i] }} />
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <TxnTable rows={[...rows].sort((a, z) => a.amountCents - z.amountCents).slice(0, 10)} isAll={isAll} />
               )}
             </div>
           </section>
@@ -295,8 +250,8 @@ export function CreditPage({ credit, accounts, month }: Props) {
 }
 
 function UtilRing({ pct }: { pct: number | null }) {
-  const size = 104;
-  const stroke = 9;
+  const size = 168;
+  const stroke = 12;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const v = Math.min(100, Math.max(0, pct ?? 0));
@@ -335,5 +290,33 @@ function UtilRing({ pct }: { pct: number | null }) {
         <div className={s.ringS}>utilization</div>
       </div>
     </div>
+  );
+}
+
+function TxnTable({ rows, isAll }: { rows: Txn[]; isAll: boolean }) {
+  return (
+    <table className={s.table}>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Merchant</th>
+          <th className={s.r}>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((t) => (
+          <tr key={t.id} className={t.status === "pending" ? s.pending : undefined}>
+            <td className={`${s.date} num`}>{dateLabel(t.postedOn)}</td>
+            <td>
+              {prettyMerchant(t.merchant)}
+              <span className={s.tag}>{t.category}</span>
+              {isAll ? <span className={s.acct}>{prettyName(t.accountName)}</span> : null}
+              {t.status === "pending" ? <span className={s.acct}>pending</span> : null}
+            </td>
+            <td className={`${s.r} num`}>−{moneyExact(Math.abs(t.amountCents))}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
