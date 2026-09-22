@@ -3,7 +3,7 @@ import type { Dashboard } from "@/lib/types";
 import { BarChart, Pie, Track, toneVar } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
-import { actualSlices } from "./PlanDonut";
+import { actualSlices } from "./slices";
 import { toneOf } from "./util";
 import s from "./overview.module.css";
 

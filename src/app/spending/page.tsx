@@ -9,7 +9,8 @@ import { MonthLedger } from "@/components/sections/MonthLedger";
 import { RulesPanel } from "@/components/sections/RulesPanel";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { PlanPanel } from "@/components/sections/PlanPanel";
-import { PlanDonut, actualSlices } from "@/components/overview/PlanDonut";
+import { PlanDonut } from "@/components/overview/PlanDonut";
+import { actualSlices } from "@/components/overview/slices";
 import { planCategoryLimits } from "@/lib/plan";
 import s from "@/components/sections/sections.module.css";
 
