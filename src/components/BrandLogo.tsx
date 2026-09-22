@@ -6,7 +6,7 @@ type Kind = "chase" | "chase-mark" | "chase-card" | "fidelity" | "spdr";
 const SRC: Record<Kind, { src: string; alt: string; w: number; h: number }> = {
   chase: { src: "/logos/chase.png", alt: "Chase", w: 640, h: 427 },
   "chase-mark": { src: "/logos/chase-mark.png", alt: "Chase", w: 256, h: 256 },
-  "chase-card": { src: "/logos/chase-freedom-card.png", alt: "Chase Freedom Unlimited card", w: 550, h: 344 },
+  "chase-card": { src: "/logos/chase-freedom-card.png", alt: "Chase Freedom Unlimited card", w: 325, h: 205 },
   fidelity: { src: "/logos/fidelity.png", alt: "Fidelity", w: 512, h: 512 },
   spdr: { src: "/logos/spdr.png", alt: "SPDR", w: 320, h: 320 },
 };
