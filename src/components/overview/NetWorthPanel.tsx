@@ -42,7 +42,8 @@ export function NetWorthPanel({
 
   const points = useMemo(() => {
     const n = DAYS[range];
-    return n ? daily.slice(Math.max(0, daily.length - n)) : daily;
+    const window = n ? daily.slice(Math.max(0, daily.length - n)) : daily;
+    return smoothSeries(window, range === "1M" ? 2 : range === "3M" ? 4 : 7);
   }, [daily, range]);
 
   const investments = accounts.filter((a) => a.kind === "investment").reduce((t, a) => t + a.balanceCents, 0);
@@ -265,4 +266,22 @@ function smoothPath(pts: readonly (readonly [number, number])[]): string {
     d += ` C${(pts[i][0] + h).toFixed(1)},${(pts[i][1] + t[i] * h).toFixed(1)} ${(pts[i + 1][0] - h).toFixed(1)},${(pts[i + 1][1] - t[i + 1] * h).toFixed(1)} ${pts[i + 1][0].toFixed(1)},${pts[i + 1][1].toFixed(1)}`;
   }
   return d;
+}
+
+// Centered rolling mean with a Gaussian-ish weight; the final point stays exact so the headline never drifts.
+function smoothSeries(pts: SeriesPoint[], radius: number): SeriesPoint[] {
+  if (pts.length < 3 || radius < 1) return pts;
+  const weights = Array.from({ length: radius * 2 + 1 }, (_, i) => Math.exp(-((i - radius) ** 2) / (2 * (radius / 2) ** 2)));
+  return pts.map((p, i) => {
+    if (i === pts.length - 1) return p;
+    let sum = 0, wsum = 0;
+    for (let k = -radius; k <= radius; k++) {
+      const j = i + k;
+      if (j < 0 || j >= pts.length) continue;
+      const w = weights[k + radius];
+      sum += pts[j].valueCents * w;
+      wsum += w;
+    }
+    return { date: p.date, valueCents: Math.round(sum / wsum) };
+  });
 }

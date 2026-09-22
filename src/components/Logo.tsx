@@ -1,10 +1,14 @@
-export function LogoMark({ size = 30 }: { size?: number }) {
+// Three interlocking crescents (each the difference of two offset circles) forming a triangular knot.
+const CRESCENT = "M75.2 23.4 A27 27 0 1 0 44.4 59.4 A24 24 0 0 1 75.2 23.4 Z";
+
+export function LogoMark({ size = 34 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <circle cx="16" cy="16" r="15" fill="var(--accent)" />
-      <path d="M16 6.5a9.5 9.5 0 1 0 9.5 9.5" fill="none" stroke="var(--accent-ink)" strokeWidth="3" strokeLinecap="round" />
-      <path d="M16 25.5a9.5 9.5 0 0 0 0-19" fill="none" stroke="var(--accent-ink)" strokeWidth="3" strokeLinecap="round" opacity="0.45" />
-      <circle cx="16" cy="16" r="3.2" fill="var(--accent-ink)" />
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+      <g fill="var(--accent)">
+        <path d={CRESCENT} />
+        <path d={CRESCENT} transform="rotate(120 50 50)" />
+        <path d={CRESCENT} transform="rotate(240 50 50)" />
+      </g>
     </svg>
   );
 }
