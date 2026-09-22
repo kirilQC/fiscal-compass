@@ -11,6 +11,6 @@ export async function GET(request: Request) {
   const { data } = await admin.from("accounts").select("user_id").eq("is_active", true);
   const users = [...new Set((data ?? []).map((r) => r.user_id as string))];
   const results: Record<string, unknown> = {};
-  for (const u of users) results[u] = await syncUser(admin, u);
+  for (const u of users) results[u] = await syncUser(admin, u, "cron");
   return NextResponse.json({ users: users.length, results });
 }

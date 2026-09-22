@@ -5,6 +5,16 @@ import { revalidateDashboard } from "./cache";
 import { categorize, categorizeMerchantsWithAI, cleanMerchant, normalizeMerchant, type Rule } from "./categorize";
 import { PAYROLL_RE } from "./settings";
 import { refreshPrices } from "./prices";
+import {
+  BALANCE_INTERVAL_DAYS,
+  TRANSACTION_INTERVAL_DAYS,
+  addPaid,
+  emptyPaid,
+  isDue,
+  refreshAndWait,
+  type PaidCounts,
+  type SyncMode,
+} from "./sync-policy";
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
@@ -16,9 +26,10 @@ interface AccountRow {
   kind: string;
 }
 
-export async function syncUser(admin: SupabaseClient, userId: string) {
-  const { data: run } = await admin.from("sync_runs").insert({ user_id: userId }).select("id").single();
-  const detail: Record<string, unknown> = {};
+export async function syncUser(admin: SupabaseClient, userId: string, mode: SyncMode = "cron") {
+  const { data: run } = await admin.from("sync_runs").insert({ user_id: userId, detail: { trigger: mode } }).select("id").single();
+  const detail: Record<string, unknown> = { trigger: mode };
+  const paid = emptyPaid();
   let status = "ok";
   try {
     const { data: accounts } = await admin
@@ -27,14 +38,19 @@ export async function syncUser(admin: SupabaseClient, userId: string) {
       .eq("user_id", userId)
       .eq("is_active", true);
     const { data: rules } = await admin.from("category_rules").select("merchant_pattern,category,is_transfer,is_income").eq("user_id", userId);
+    const lastRun = await lastSyncStarted(admin, userId);
     for (const a of (accounts ?? []) as AccountRow[]) {
       if (a.provider !== "stripe" || !a.provider_account_id) continue;
-      detail[a.id] = await syncStripeAccount(admin, a, (rules ?? []) as Rule[]);
+      const r = await syncStripeAccount(admin, a, (rules ?? []) as Rule[], mode, lastRun);
+      addPaid(paid, r.paid);
+      detail[a.id] = r;
     }
+    detail.paid = paid;
     detail.ai = await categorizeUnknownWithAI(admin, userId);
     detail.paychecks = await detectPaychecks(admin, userId);
-    await carryForwardHoldings(admin, userId);
     detail.prices = await refreshPrices(admin, userId);
+    await carryForwardHoldings(admin, userId);
+    await alignHoldingsToBalances(admin, userId);
   } catch (e) {
     status = "error";
     detail.error = e instanceof Error ? e.message : String(e);
@@ -43,18 +59,46 @@ export async function syncUser(admin: SupabaseClient, userId: string) {
     await admin.from("sync_runs").update({ finished_at: new Date().toISOString(), status, detail }).eq("id", run.id);
   }
   revalidateDashboard();
-  return { status, detail };
+  return { status, detail, paid };
 }
 
-export async function syncAccount(admin: SupabaseClient, accountId: string) {
-  const { data: a } = await admin.from("accounts").select("id,user_id,provider,provider_account_id,kind").eq("id", accountId).single();
-  if (!a || a.provider !== "stripe" || !a.provider_account_id) return null;
+// Free by default: lists what Stripe already holds and recomputes. "force" pays for a fresh pull.
+export async function syncAccount(admin: SupabaseClient, accountId: string, mode: SyncMode = "free") {
+  const { data: a } = await admin.from("accounts").select("id,user_id,provider,provider_account_id,kind,is_active").eq("id", accountId).single();
+  if (!a || a.provider !== "stripe" || !a.provider_account_id || !a.is_active) return null;
   const { data: rules } = await admin.from("category_rules").select("merchant_pattern,category,is_transfer,is_income").eq("user_id", a.user_id);
-  const result = await syncStripeAccount(admin, a as AccountRow, (rules ?? []) as Rule[]);
+  const result = await syncStripeAccount(admin, a as AccountRow, (rules ?? []) as Rule[], mode, null);
   await categorizeUnknownWithAI(admin, a.user_id);
   await detectPaychecks(admin, a.user_id);
+  await alignHoldingsToBalances(admin, a.user_id);
   revalidateDashboard();
   return result;
+}
+
+async function lastSyncStarted(admin: SupabaseClient, userId: string): Promise<string | null> {
+  const { data } = await admin
+    .from("sync_runs")
+    .select("started_at")
+    .eq("user_id", userId)
+    .eq("status", "ok")
+    .order("started_at", { ascending: false })
+    .limit(2);
+  // The newest row is the run in progress; the one before it is the last completed sync.
+  return data?.[1]?.started_at ?? null;
+}
+
+export async function monthToDateCost(admin: SupabaseClient, userId: string) {
+  const monthStart = `${today().slice(0, 7)}-01T00:00:00Z`;
+  const { data } = await admin.from("sync_runs").select("started_at,detail").eq("user_id", userId).gte("started_at", monthStart);
+  const totals = emptyPaid();
+  const refreshes: { at: string; balance: number; transactions: number; trigger: string }[] = [];
+  for (const r of data ?? []) {
+    const d = r.detail as { paid?: PaidCounts; trigger?: string } | null;
+    if (!d?.paid || (d.paid.balance === 0 && d.paid.transactions === 0)) continue;
+    addPaid(totals, d.paid);
+    refreshes.push({ at: r.started_at, balance: d.paid.balance, transactions: d.paid.transactions, trigger: d.trigger ?? "cron" });
+  }
+  return { monthUsd: totals.estUsd, counts: { balance: totals.balance, transactions: totals.transactions }, refreshes };
 }
 
 // Payroll deposits become paychecks automatically; nothing is ever entered by hand.
@@ -130,27 +174,121 @@ export async function categorizeUnknownWithAI(admin: SupabaseClient, userId: str
   return { asked: ask.length, applied };
 }
 
-async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Rule[]) {
+async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Rule[], mode: SyncMode, lastRunIso: string | null) {
   const s = stripe();
   const fcId = a.provider_account_id!;
+  const paid = emptyPaid();
   let account = await s.financialConnections.accounts.retrieve(fcId);
-  if (account.balance_refresh?.status !== "pending" && (account.balance_refresh?.next_refresh_available_at ?? 0) * 1000 <= Date.now()) {
+
+  const txnDue =
+    mode === "force" ||
+    (mode === "cron" && isDue(account.transaction_refresh?.last_attempted_at, lastRunIso, TRANSACTION_INTERVAL_DAYS[a.kind] ?? 7));
+  if (txnDue && account.transaction_refresh?.status !== "pending") {
     try {
-      account = await s.financialConnections.accounts.refresh(fcId, { features: ["balance"] });
+      account = await refreshAndWait(s, fcId, "transactions");
+      paid.transactions += 1;
     } catch {
-      // Refresh is rate limited by the institution; fall through with the last known balance.
+      // Transactions feature may be unavailable; the free list below still runs.
     }
   }
-  const balance = currentBalanceCents(account);
+
+  const balanceDue =
+    mode === "force" || (mode === "cron" && isDue(account.balance_refresh?.last_attempted_at, lastRunIso, BALANCE_INTERVAL_DAYS));
+  let refreshedBalance: number | null = null;
+  if (balanceDue && account.balance_refresh?.status !== "pending") {
+    try {
+      account = await refreshAndWait(s, fcId, "balance");
+      paid.balance += 1;
+      if (account.balance_refresh?.status === "succeeded") refreshedBalance = currentBalanceCents(account);
+    } catch {
+      // Institution rate limit or unsupported (loans); derive below instead.
+    }
+  }
+
+  const inserted = await pullTransactions(admin, s, a, rules);
+
+  let balance: number | null;
+  let source: "refresh" | "derived";
+  if (refreshedBalance !== null) {
+    balance = refreshedBalance;
+    source = "refresh";
+  } else {
+    balance = await deriveBalance(admin, a, account);
+    source = "derived";
+  }
   if (balance !== null) {
     await admin.from("balances_daily").upsert(
       { account_id: a.id, user_id: a.user_id, as_of: today(), balance_cents: balance },
       { onConflict: "account_id,as_of" },
     );
   }
+  return { balance, source, transactions: inserted, paid };
+}
 
-  const inserted = await pullTransactions(admin, s, a, rules);
-  return { balance, transactions: inserted };
+// Today's balance without paying Stripe: start from the last known balance and roll forward.
+async function deriveBalance(admin: SupabaseClient, a: AccountRow, account: Stripe.FinancialConnections.Account): Promise<number | null> {
+  let base: number | null = null;
+  let baseDate: string | null = null;
+  const stripeBal = currentBalanceCents(account);
+  const stripeAt = account.balance_refresh?.last_attempted_at;
+  if (stripeBal !== null && stripeAt && account.balance_refresh?.status === "succeeded") {
+    base = stripeBal;
+    baseDate = new Date(stripeAt * 1000).toISOString().slice(0, 10);
+  }
+  const { data: latest } = await admin
+    .from("balances_daily")
+    .select("as_of,balance_cents")
+    .eq("account_id", a.id)
+    .lt("as_of", today())
+    .order("as_of", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  // A newer row we already hold (manual entry, or a later derivation) beats an older Stripe snapshot.
+  if (latest && (!baseDate || latest.as_of > baseDate)) {
+    base = latest.balance_cents;
+    baseDate = latest.as_of;
+  }
+  if (base === null || !baseDate) return null;
+
+  if (a.kind === "investment") {
+    const { data: h } = await admin.from("holdings").select("symbol").eq("account_id", a.id);
+    const symbol = h?.length === 1 ? h[0].symbol.toUpperCase() : null;
+    if (symbol) {
+      const { data: series } = await admin.from("prices").select("as_of,close_cents").eq("symbol", symbol).lte("as_of", today()).order("as_of", { ascending: false }).limit(400);
+      const latestClose = series?.[0];
+      const baseClose = series?.find((r) => r.as_of <= baseDate!);
+      if (latestClose && baseClose && baseClose.close_cents > 0) {
+        const shares = base / baseClose.close_cents;
+        return Math.round(shares * latestClose.close_cents);
+      }
+    }
+    return base;
+  }
+
+  // Cash, credit and loans: amounts are signed money-in, so a plain sum rolls any of them forward.
+  const { data: txns } = await admin
+    .from("transactions")
+    .select("amount_cents")
+    .eq("account_id", a.id)
+    .eq("status", "posted")
+    .gt("posted_on", baseDate)
+    .lte("posted_on", today());
+  const delta = (txns ?? []).reduce((sum, t) => sum + t.amount_cents, 0);
+  return base + delta;
+}
+
+// A brokerage account with a single holding is that holding: keep its daily value equal to the account balance.
+export async function alignHoldingsToBalances(admin: SupabaseClient, userId: string) {
+  const { data: accounts } = await admin.from("accounts").select("id").eq("user_id", userId).eq("kind", "investment").eq("provider", "stripe").eq("is_active", true);
+  for (const acc of accounts ?? []) {
+    const { data: hs } = await admin.from("holdings").select("id").eq("account_id", acc.id);
+    if (hs?.length !== 1) continue;
+    const { data: bal } = await admin.from("balances_daily").select("balance_cents").eq("account_id", acc.id).eq("as_of", today()).maybeSingle();
+    if (!bal) continue;
+    await admin
+      .from("holdings_daily")
+      .upsert({ holding_id: hs[0].id, user_id: userId, as_of: today(), value_cents: bal.balance_cents }, { onConflict: "holding_id,as_of" });
+  }
 }
 
 async function pullTransactions(admin: SupabaseClient, s: Stripe, a: AccountRow, rules: Rule[]) {

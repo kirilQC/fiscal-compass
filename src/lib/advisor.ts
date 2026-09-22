@@ -35,7 +35,6 @@ export function buildContext(d: Dashboard): string {
     L.push(`- Tithe: ${st.tithePct}% of income to church, a fixed commitment (sometimes more). Never treat Giving as overspending or suggest cutting it.`);
     if (st.paycheckNetCents) L.push(`- Expected take-home per paycheck: ${money(st.paycheckNetCents)}, landing on day(s) ${st.payDays.join(" and ")} of each month (about ${money(st.paycheckNetCents * st.payDays.length)}/month).`);
     else L.push(`- Paychecks land on day(s) ${st.payDays.join(" and ")} of each month (Gusto payroll deposits are detected automatically).`);
-    if (st.notes.trim()) L.push(`- Notes from Kiril: ${st.notes.trim()}`);
   }
 
   L.push("\nAccounts:");
@@ -115,9 +114,11 @@ export function buildContext(d: Dashboard): string {
   return L.join("\n");
 }
 
-export function systemPrompt(context: string): string {
-  return `You are Kiril's personal financial advisor inside his own app, Fiscal Compass. You see every account he owns.
-
+export function systemPrompt(context: string, harness?: string): string {
+  const framing = harness?.trim()
+    ? `${harness.trim()}\n\n`
+    : "You are Kiril's personal financial advisor inside his own app, Fiscal Compass. You see every account he owns.\n\n";
+  return `${framing}
 How to work:
 - Be precise and plain-spoken. Lead with the number, then the reasoning, then the action.
 - Use ONLY the figures in the snapshot below. Never invent balances, rates, dates, or transactions. If something you need is not in the snapshot (for example paychecks not yet linked, or a holding without history), say so in one sentence and answer with what you have.
@@ -154,7 +155,7 @@ export async function generateBrief(d: Dashboard): Promise<string> {
   try {
     const res = await ai.responses.create({
       model: MODEL,
-      instructions: systemPrompt(buildContext(d)),
+      instructions: systemPrompt(buildContext(d), d.settings?.notes),
       input:
         "Write this morning's brief for Kiril: 3 to 5 sentences, one paragraph. Cover budget pace (percent used vs day of month), the most important category or anomaly, and the goal that most needs attention. End with one question offering a specific action.",
     });
@@ -179,7 +180,7 @@ export async function* streamReply(d: Dashboard, history: ChatTurn[]): AsyncGene
     yield "The advisor isn't connected yet — add OPENAI_API_KEY to the environment and I'll be able to answer.";
     return;
   }
-  const instructions = systemPrompt(buildContext(d));
+  const instructions = systemPrompt(buildContext(d), d.settings?.notes);
   const input = history.map((m) => ({ role: m.role, content: m.content }));
   try {
     const stream = await ai.responses.create({ model: MODEL, instructions, input, stream: true });

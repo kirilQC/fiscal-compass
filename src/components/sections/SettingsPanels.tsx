@@ -148,8 +148,8 @@ export function IncomeSettings({ initial }: { initial: Settings }) {
         </div>
       </div>
       <div className={s.field}>
-        <label htmlFor="st-notes">Standing notes for the advisor</label>
-        <textarea id="st-notes" className={`${s.input} ${s.textarea}`} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="Anything the advisor should always know — commitments, plans, how you think about money." />
+        <label htmlFor="st-notes">AI harness — who you are, your situation, how it should answer. Read before every reply.</label>
+        <textarea id="st-notes" className={`${s.input} ${s.textarea}`} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} placeholder="You are my personal financial advisor…" rows={14} />
       </div>
       <div className={s.actions}><button type="submit" className={s.button} disabled={state.busy}>{state.busy ? "Saving…" : "Save"}</button></div>
       {state.err ? <p className={s.err}>{state.err}</p> : null}

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const fc = event.data.object as Stripe.FinancialConnections.Account;
     const admin = createAdminClient();
     const { data } = await admin.from("accounts").select("id").eq("provider", "stripe").eq("provider_account_id", fc.id).maybeSingle();
-    if (data?.id) await syncAccount(admin, data.id);
+    if (data?.id) await syncAccount(admin, data.id, "free");
   } else if (event.type === "financial_connections.account.disconnected" || event.type === "financial_connections.account.deactivated") {
     const fc = event.data.object as Stripe.FinancialConnections.Account;
     const admin = createAdminClient();

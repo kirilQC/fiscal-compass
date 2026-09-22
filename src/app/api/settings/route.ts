@@ -7,7 +7,7 @@ const Put = z.object({
   paycheckNetCents: z.number().int().min(0).nullable(),
   payDays: z.array(z.number().int().min(1).max(31)).min(1).max(6),
   tithePct: z.number().min(0).max(100),
-  notes: z.string().max(4000),
+  notes: z.string().max(12000),
 });
 
 export async function GET() {

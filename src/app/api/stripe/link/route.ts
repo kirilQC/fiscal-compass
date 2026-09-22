@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAccountKind, prettyAccountName, stripe } from "@/lib/stripe";
 import { syncAccount } from "@/lib/sync";
 import { revalidateDashboard } from "@/lib/cache";
+import { addPaid, emptyPaid } from "@/lib/sync-policy";
 
 const Body = z.object({ sessionId: z.string().min(1) });
 
@@ -55,18 +56,16 @@ export async function POST(request: Request) {
         id = data.id;
       }
       linked.push(id);
-      try {
-        await s.financialConnections.accounts.subscribe(fc.id, { features: ["transactions"] });
-      } catch {
-        // Transactions must be enabled for the Stripe account; balances still sync without it.
-      }
     }
+    // One paid refresh per newly linked account so it populates; no automatic subscription (Stripe bills per refresh).
     const admin = createAdminClient();
     const { data: run } = await admin.from("sync_runs").insert({ user_id: userId, detail: { trigger: "link" } }).select("id").single();
-    const results = await Promise.all(linked.map((id) => syncAccount(admin, id)));
+    const results = await Promise.all(linked.map((id) => syncAccount(admin, id, "force")));
+    const paid = emptyPaid();
+    for (const r of results) if (r?.paid) addPaid(paid, r.paid);
     if (run?.id) {
-      await admin.from("sync_runs").update({ finished_at: new Date().toISOString(), status: "ok", detail: { trigger: "link", results } }).eq("id", run.id);
+      await admin.from("sync_runs").update({ finished_at: new Date().toISOString(), status: "ok", detail: { trigger: "link", results, paid } }).eq("id", run.id);
     }
-    return { linked: linked.length, results };
+    return { linked: linked.length, results, paid };
   });
 }
