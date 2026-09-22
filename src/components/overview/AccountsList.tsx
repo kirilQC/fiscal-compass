@@ -65,13 +65,6 @@ function Logo({ a }: { a: Account }) {
   );
 }
 
-function sub(a: Account) {
-  if (a.kind === "investment") return a.name.toLowerCase().includes("brokerage") ? prettyName(a.name) : "Brokerage";
-  if (a.kind === "checking" || a.kind === "savings") return "Cash";
-  if (a.kind === "credit") return "Outstanding balance";
-  if (a.kind === "loan") return a.balanceCents === 0 ? "Balance missing" : "Remaining balance";
-  return a.institution;
-}
 
 function href(a: Account) {
   if (a.kind === "investment") return "/investments";
@@ -103,7 +96,6 @@ export function AccountsList({ accounts }: { accounts: Account[] }) {
                 <span className={s.top}>
                   <Logo a={a} />
                   <span className={s.name}>{label(a)}</span>
-                  <span className={s.sub}>{sub(a)}</span>
                 </span>
                 {missing ? (
                   <span className={s.add}>Add balance <b>+</b></span>

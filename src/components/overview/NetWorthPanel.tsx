@@ -104,7 +104,6 @@ export function NetWorthPanel({
   return (
     <section className={s.panel}>
       <div className={s.head}>
-        <div className={`eyebrow ${s.eyebrow}`}>Net worth</div>
         <div className={s.figure}>
           <h1 className={`${s.nw} num`}>
             <sup>$</sup>

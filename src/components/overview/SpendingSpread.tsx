@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
-import { BarChart, Pie, Track, toneVar } from "@/components/charts";
+import { BarChart, Pie, Track } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { actualSlices } from "./slices";
 import { IncomePie } from "./IncomePie";
-import { toneOf } from "./util";
 import s from "./overview.module.css";
 
 export function SpendingSpread({ d }: { d: Dashboard }) {
@@ -48,7 +47,6 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
   const fullMonths = flows.slice(0, -1).filter((f) => f.incomeCents > 0);
   const typicalIncome = fullMonths.length ? fullMonths[fullMonths.length - 1].incomeCents : 0;
   const anomaly = d.recentTransactions.find((t) => t.anomalyNote);
-  const categories = b.categories.filter((c) => c.limitCents > 0 || c.spentCents > 0);
 
   return (
     <section className={s.spread}>
@@ -86,25 +84,6 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
           <IncomePie d={d} size={420} />
         </div>
         {b.isSuggested ? <div style={{ marginTop: 34 }}><SaveSuggestedBudget budget={b} compact /></div> : null}
-        {categories.map((c) => {
-          const pct = c.limitCents ? (c.spentCents / c.limitCents) * 100 : 0;
-          const tone = c.isCommitment ? "good" : toneOf(pct);
-          const color = tone === "good" ? "var(--accent)" : toneVar[tone];
-          return (
-            <div className={s.cat} key={c.category}>
-              <span>
-                <i className={s.dot} style={{ background: toneVar[tone] }} />
-                {c.category}
-              </span>
-              <div className={s.t}>
-                <i style={{ width: `${Math.min(100, pct)}%`, background: color }} />
-              </div>
-              <span className={`${s.a} num ${tone !== "good" ? tone : ""}`}>
-                {money(c.spentCents)}{c.limitCents ? ` / ${Math.round(c.limitCents / 100)}` : ""}
-              </span>
-            </div>
-          );
-        })}
         {anomaly ? (
           <div className={s.note}>
             <b>Unusual</b> — {anomaly.merchant} {moneyExact(Math.abs(anomaly.amountCents))} on {dateLabel(anomaly.postedOn)} is {anomaly.anomalyNote}.

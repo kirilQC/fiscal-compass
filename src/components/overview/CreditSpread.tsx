@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
 import { BarChart, LineChart } from "@/components/charts";
 import { money, monthLabel } from "@/lib/format";
-import { BrandLogo } from "@/components/BrandLogo";
 import s from "./overview.module.css";
 
 export function CreditSpread({ d }: { d: Dashboard }) {
@@ -19,7 +18,6 @@ export function CreditSpread({ d }: { d: Dashboard }) {
       <div>
         <h2 className={s.h2}>Credit</h2>
         <div className={s.cardHero}>
-          <BrandLogo kind="chase-card" size={220} />
           <div className={s.heads}>
           <div>
             <span className="eyebrow">Current balance</span>
