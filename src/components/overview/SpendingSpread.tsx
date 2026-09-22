@@ -56,7 +56,7 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
   const selectedYm = selectedMonth ?? b.month;
   const monthName = new Date(`${selectedYm}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
   const pieSlices = isCurrent ? actualSlices(b.categories) : actualSlices((sel?.categories ?? []).map((c) => ({ category: c.category, spentCents: c.spentCents, limitCents: 0 })));
-  const income = (sel?.incomeCents || selFlow?.incomeCents || 0) || monthlyIncomeCents(d) || 0;
+  const income = monthlyIncomeCents(d) || (sel?.incomeCents || selFlow?.incomeCents || 0);
 
   const pacePct = (b.dayOfMonth / b.daysInMonth) * 100;
   const under = b.totalCents - b.projectedCents;
@@ -105,7 +105,6 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
           selectedIndex={selectedIndex}
           onSelect={(i) => setSelectedMonth(flows[i]?.month ?? b.month)}
         />
-        <p className={s.hint}>Click a month to see where it went.</p>
       </div>
       <div>
         <div className={s.pies}>
