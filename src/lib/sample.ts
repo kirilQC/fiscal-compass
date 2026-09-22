@@ -111,6 +111,14 @@ export const sampleDashboard: Dashboard = {
     { month: "2026-08", incomeCents: k(7880), spendCents: k(3380) },
     { month: "2026-09", incomeCents: k(3940), spendCents: k(1870) },
   ],
+  monthlySpending: [
+    { month: "2026-04", spentCents: k(2810), incomeCents: k(7880), categories: [{ category: "Groceries", spentCents: k(620) }, { category: "Dining", spentCents: k(540) }, { category: "Shopping", spentCents: k(610) }, { category: "Transport", spentCents: k(380) }, { category: "Subscriptions", spentCents: k(160) }, { category: "Other", spentCents: k(500) }] },
+    { month: "2026-05", spentCents: k(3120), incomeCents: k(7880), categories: [{ category: "Groceries", spentCents: k(580) }, { category: "Dining", spentCents: k(720) }, { category: "Shopping", spentCents: k(840) }, { category: "Transport", spentCents: k(410) }, { category: "Subscriptions", spentCents: k(150) }, { category: "Other", spentCents: k(420) }] },
+    { month: "2026-06", spentCents: k(2640), incomeCents: k(10280), categories: [{ category: "Groceries", spentCents: k(510) }, { category: "Dining", spentCents: k(460) }, { category: "Shopping", spentCents: k(520) }, { category: "Transport", spentCents: k(390) }, { category: "Subscriptions", spentCents: k(150) }, { category: "Other", spentCents: k(610) }] },
+    { month: "2026-07", spentCents: k(2950), incomeCents: k(7880), categories: [{ category: "Groceries", spentCents: k(560) }, { category: "Dining", spentCents: k(610) }, { category: "Shopping", spentCents: k(700) }, { category: "Transport", spentCents: k(430) }, { category: "Subscriptions", spentCents: k(150) }, { category: "Other", spentCents: k(500) }] },
+    { month: "2026-08", spentCents: k(3380), incomeCents: k(7880), categories: [{ category: "Groceries", spentCents: k(640) }, { category: "Dining", spentCents: k(760) }, { category: "Shopping", spentCents: k(900) }, { category: "Transport", spentCents: k(420) }, { category: "Subscriptions", spentCents: k(160) }, { category: "Other", spentCents: k(500) }] },
+    { month: "2026-09", spentCents: k(1870), incomeCents: k(3940), categories: [{ category: "Shopping", spentCents: k(506) }, { category: "Groceries", spentCents: k(412) }, { category: "Dining", spentCents: k(388) }, { category: "Other", spentCents: k(221) }, { category: "Transport", spentCents: k(214) }, { category: "Subscriptions", spentCents: k(129) }] },
+  ],
   credit: [
     {
       accountId: "a3",

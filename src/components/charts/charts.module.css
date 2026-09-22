@@ -91,13 +91,15 @@
 @media (max-width: 560px) { .donutWrap { grid-template-columns: 1fr; justify-items: center; } .donutLegend { width: 100%; } }
 
 /* Full pie (reference style) */
-.pieFig { margin: 0; display: grid; gap: 14px; }
+.pieFig { margin: 0; display: grid; gap: 14px; align-content: start; }
+.pieHead { display: grid; gap: 14px; align-content: start; min-height: 132px; }
 .pieTitle { font-family: var(--sans); font-weight: 700; font-size: 20px; color: var(--ink); letter-spacing: -0.01em; }
 .pieLegend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
 .pieLegend li { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink2); }
 .pieLegend i { width: 22px; height: 22px; border-radius: 50%; flex: none; }
 .pie { width: 100%; height: auto; display: block; margin: 8px auto 0; }
 .pieLabel { font-family: var(--sans); font-weight: 700; font-size: 7px; font-variant-numeric: tabular-nums; }
+.pieLabelSm { font-size: 6px; }
 
 /* Plan vs actual bullets */
 .bulletHead { fill: var(--ink3); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }

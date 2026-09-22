@@ -90,6 +90,13 @@ export interface MonthlyFlow {
   spendCents: number;
 }
 
+export interface MonthlySpending {
+  month: string; // YYYY-MM
+  spentCents: number;
+  incomeCents: number;
+  categories: { category: string; spentCents: number }[];
+}
+
 export interface CreditSummary {
   accountId: string;
   name: string;
@@ -165,6 +172,7 @@ export interface Dashboard {
   investmentChangeMtdPct: number | null;
   budget: BudgetSummary | null;
   monthlyFlow: MonthlyFlow[];
+  monthlySpending: MonthlySpending[];
   credit: CreditSummary[];
   loans: LoanSummary[];
   goals: Goal[];

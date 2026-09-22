@@ -30,7 +30,7 @@ function polar(angle: number, r: number): [number, number] {
   return [C + r * Math.cos(a), C + r * Math.sin(a)];
 }
 
-export function Pie({ slices, title, ariaLabel, formatValue, size = 560, labelMinPct = 8, className, colors = PIE_COLORS, sortSlices = true }: PieProps) {
+export function Pie({ slices, title, ariaLabel, formatValue, size = 560, labelMinPct = 10, className, colors = PIE_COLORS, sortSlices = true }: PieProps) {
   const filtered = slices.filter((s) => s.value > 0);
   const data = (sortSlices ? [...filtered].sort((a, b) => b.value - a.value) : filtered).slice(0, colors.length);
   const total = data.reduce((t, s) => t + s.value, 0);
@@ -50,25 +50,33 @@ export function Pie({ slices, title, ariaLabel, formatValue, size = 560, labelMi
 
   return (
     <figure className={`${styles.pieFig} ${className ?? ""}`}>
-      <figcaption className={styles.pieTitle}>{title}</figcaption>
-      <ul className={styles.pieLegend}>
-        {arcs.map((a) => (
-          <li key={a.label}>
-            <i style={{ background: a.color }} />
-            <span>{a.label} : {a.pct.toFixed(1)}%</span>
-          </li>
-        ))}
-      </ul>
+      <div className={styles.pieHead}>
+        <figcaption className={styles.pieTitle}>{title}</figcaption>
+        <ul className={styles.pieLegend}>
+          {arcs.map((a) => (
+            <li key={a.label}>
+              <i style={{ background: a.color }} />
+              <span>{a.label} : {a.pct.toFixed(1)}%</span>
+            </li>
+          ))}
+        </ul>
+      </div>
       <svg className={styles.pie} viewBox="0 0 208 208" role="img" aria-label={ariaLabel} style={{ maxWidth: size }}>
         {arcs.map((a) => (
           <path key={a.label} d={a.d} fill={a.color} stroke="var(--bg)" strokeWidth="2" strokeLinejoin="round" />
         ))}
-        {arcs.filter((a) => a.pct >= labelMinPct).map((a) => (
-          <text key={a.label} x={a.lx} y={a.ly} textAnchor="middle" className={styles.pieLabel} style={{ fill: inkFor(a.color) }}>
-            <tspan x={a.lx} dy="-0.35em">{a.label}</tspan>
-            <tspan x={a.lx} dy="1.25em">{formatValue(a.value)} ({a.pct.toFixed(1)}%)</tspan>
-          </text>
-        ))}
+        {arcs.filter((a) => a.pct >= labelMinPct).map((a) =>
+          a.pct < 14 && data.length > 2 ? (
+            <text key={a.label} x={a.lx} y={a.ly} textAnchor="middle" dominantBaseline="middle" className={`${styles.pieLabel} ${styles.pieLabelSm}`} style={{ fill: inkFor(a.color) }}>
+              {formatValue(a.value)} · {a.pct.toFixed(1)}%
+            </text>
+          ) : (
+            <text key={a.label} x={a.lx} y={a.ly} textAnchor="middle" className={styles.pieLabel} style={{ fill: inkFor(a.color) }}>
+              <tspan x={a.lx} dy="-0.35em">{a.label}</tspan>
+              <tspan x={a.lx} dy="1.25em">{formatValue(a.value)} ({a.pct.toFixed(1)}%)</tspan>
+            </text>
+          ),
+        )}
       </svg>
     </figure>
   );

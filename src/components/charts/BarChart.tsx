@@ -22,6 +22,8 @@ export interface BarChartProps {
   formatValue?: (v: number) => string;
   className?: string;
   style?: React.CSSProperties;
+  selectedIndex?: number;
+  onSelect?: (index: number) => void;
 }
 
 export function BarChart({
@@ -35,6 +37,8 @@ export function BarChart({
   formatValue = compact,
   className,
   style,
+  selectedIndex,
+  onSelect,
 }: BarChartProps) {
   if (bars.length === 0) return null;
   const top = 16;
@@ -63,18 +67,30 @@ export function BarChart({
         const yTop = r1(y(b.value));
         const color = b.color ?? "var(--accent)";
         const showVal = showValues === true || (showValues === "emphasis" && b.emphasis);
+        const interactive = !!onSelect;
+        const selected = selectedIndex === undefined ? b.emphasis : selectedIndex === i;
         return (
-          <g key={i}>
-            <rect x={x0} y={yTop} width={barW} height={r1(bottom - yTop)} fill={color} opacity={b.emphasis ? 1 : 0.5} />
+          <g
+            key={i}
+            role={interactive ? "button" : undefined}
+            tabIndex={interactive ? 0 : undefined}
+            aria-label={interactive ? `${b.label}: ${formatValue(b.value)}` : undefined}
+            aria-pressed={interactive ? selected : undefined}
+            onClick={interactive ? () => onSelect(i) : undefined}
+            onKeyDown={interactive ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(i); } } : undefined}
+            style={interactive ? { cursor: "pointer", outline: "none" } : undefined}
+          >
+            {interactive ? <rect x={r1(slot * i)} y={top} width={r1(slot)} height={r1(bottom - top)} fill="transparent" /> : null}
+            <rect x={x0} y={yTop} width={barW} height={r1(bottom - yTop)} fill={color} opacity={selected ? 1 : 0.45} />
             {b.projected !== undefined && b.projected > b.value ? (
               <rect x={x0} y={r1(y(b.projected))} width={barW} height={r1(yTop - y(b.projected))} fill="none" stroke={color} strokeDasharray="2 2" />
             ) : null}
             {showVal ? (
-              <text x={cx} y={r1((b.projected && b.projected > b.value ? y(b.projected) : yTop) - 7)} textAnchor="middle" style={b.emphasis ? { fill: "var(--ink)" } : undefined}>
+              <text x={cx} y={r1((b.projected && b.projected > b.value ? y(b.projected) : yTop) - 7)} textAnchor="middle" style={selected ? { fill: "var(--ink)" } : undefined}>
                 {formatValue(b.value)}
               </text>
             ) : null}
-            <text x={cx} y={bottom + 18} textAnchor="middle">
+            <text x={cx} y={bottom + 18} textAnchor="middle" style={selected && interactive ? { fill: "var(--ink)" } : undefined}>
               {b.label}
             </text>
           </g>

@@ -9,6 +9,7 @@ import type {
   Holding,
   LoanSummary,
   MonthlyFlow,
+  MonthlySpending,
   SeriesPoint,
   Transaction,
 } from "./types";
@@ -351,6 +352,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   }
 
   const monthlyFlow: MonthlyFlow[] = [];
+  const monthlySpending: MonthlySpending[] = [];
   for (let i = 5; i >= 0; i--) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     const m = ym(iso(d));
@@ -358,6 +360,17 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     const incomeTx = txns.filter((t) => t.is_income && ym(t.posted_on) === m).reduce((s, t) => s + t.amount_cents, 0);
     const spend = txns.filter((t) => isSpend(t) && ym(t.posted_on) === m).reduce((s, t) => s - t.amount_cents, 0);
     monthlyFlow.push({ month: m, incomeCents: pay || incomeTx, spendCents: spend });
+    const byCat = new Map<string, number>();
+    for (const t of txns) {
+      if (!isSpend(t) || ym(t.posted_on) !== m || t.category === "Reimbursed") continue;
+      byCat.set(t.category, (byCat.get(t.category) ?? 0) - t.amount_cents);
+    }
+    monthlySpending.push({
+      month: m,
+      spentCents: spend,
+      incomeCents: pay || incomeTx,
+      categories: [...byCat.entries()].map(([category, spentCents]) => ({ category, spentCents })).sort((a, b) => b.spentCents - a.spentCents),
+    });
   }
 
   let savingsRatePct: number | null = null;
@@ -479,6 +492,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     investmentChangeMtdPct: investmentChangeMtdPct === null ? null : Math.round(investmentChangeMtdPct * 10) / 10,
     budget,
     monthlyFlow,
+    monthlySpending,
     credit,
     loans,
     goals,

@@ -9,13 +9,14 @@ export function monthlyIncomeCents(d: Dashboard): number | null {
   return null;
 }
 
-export function IncomePie({ d, size = 420 }: { d: Dashboard; size?: number }) {
+export function IncomePie({ d, size = 420, month, spentCents, incomeCents }: { d: Dashboard; size?: number; month?: string; spentCents?: number; incomeCents?: number }) {
   const b = d.budget;
-  const income = monthlyIncomeCents(d);
-  if (!b || !income) return null;
-  const spent = b.spentCents;
+  const ym = month ?? b?.month;
+  const income = incomeCents || monthlyIncomeCents(d);
+  const spent = spentCents ?? b?.spentCents;
+  if (!ym || !income || spent === undefined) return null;
   const left = Math.max(0, income - spent);
-  const monthName = new Date(`${b.month}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
+  const monthName = new Date(`${ym}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
   return (
     <Pie
       slices={[
