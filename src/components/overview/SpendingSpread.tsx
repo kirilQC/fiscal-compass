@@ -49,15 +49,11 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
   const anomaly = d.recentTransactions.find((t) => t.anomalyNote);
   const categories = b.categories.filter((c) => c.limitCents > 0 || c.spentCents > 0);
   const plan = d.plan ?? null;
-  const budgetWord = b.source === "plan" ? "planned essentials" : b.isSuggested ? "suggested budget" : "budget";
 
   return (
     <section className={s.spread}>
       <div>
         <h2 className={s.h2}>Spending</h2>
-        <p className={s.sub}>
-          {monthName} · day {b.dayOfMonth} of {b.daysInMonth} · {money(b.totalCents)} {budgetWord}
-        </p>
         <div className={`${s.fig} num`}>
           {money(b.spentCents)}
           <small>spent · {money(Math.abs(b.remainingCents))} {b.remainingCents >= 0 ? "left" : "over"}</small>
