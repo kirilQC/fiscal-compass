@@ -220,7 +220,9 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     date: day,
     valueCents: day === todayIso ? netWorthCents : (dayTotals.get(day) ?? 0) - (investTotals.get(day) ?? 0) + investAt(day),
   }));
-  const investmentDaily: SeriesPoint[] = dayKeys.map((day) => ({ date: day, valueCents: investAt(day) }));
+  const investmentDaily: SeriesPoint[] = dayKeys
+    .filter((day) => priceValue.size === 0 || priceValue.has(day) || day === todayIso)
+    .map((day) => ({ date: day, valueCents: investAt(day) }));
 
   const netWorth5y: SeriesPoint[] = [];
   for (let y = now.getUTCFullYear() - 5; y < now.getUTCFullYear(); y++) {
