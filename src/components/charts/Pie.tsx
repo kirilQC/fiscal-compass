@@ -97,21 +97,6 @@ export function Pie({
     <figure className={`${styles.pieFig} ${className ?? ""}`}>
       <div className={styles.pieHead}>
         <figcaption className={styles.pieTitle}>{title}</figcaption>
-        <ul className={styles.pieLegend}>
-          {arcs.map((a, i) => (
-            <li
-              key={a.label}
-              className={hoveredIndex === i ? styles.pieLegendHot : undefined}
-              onMouseEnter={interactive ? (e) => onSliceHover?.(i, e) : undefined}
-              onMouseLeave={interactive ? () => onSliceHover?.(null) : undefined}
-            >
-              <i style={{ background: a.color }} />
-              <span>
-                {a.label} <b>{a.pct.toFixed(1)}%</b>
-              </span>
-            </li>
-          ))}
-        </ul>
       </div>
       <svg
         className={`${styles.pie} ${interactive ? styles.pieHover : ""}`}
@@ -128,6 +113,7 @@ export function Pie({
             fill={a.color}
             stroke="var(--bg)"
             strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
             strokeLinejoin="round"
             className={styles.pieSlice}
             style={hoveredIndex === i ? { transform: `scale(${hoverScale})`, filter: "brightness(1.1)" } : undefined}
@@ -152,6 +138,21 @@ export function Pie({
           </>
         ) : null}
       </svg>
+      <ul className={styles.pieLegend}>
+          {arcs.map((a, i) => (
+            <li
+              key={a.label}
+              className={hoveredIndex === i ? styles.pieLegendHot : undefined}
+              onMouseEnter={interactive ? (e) => onSliceHover?.(i, e) : undefined}
+              onMouseLeave={interactive ? () => onSliceHover?.(null) : undefined}
+            >
+              <i style={{ background: a.color }} />
+              <span>
+                {a.label} <b>{a.pct.toFixed(1)}%</b>
+              </span>
+            </li>
+          ))}
+      </ul>
     </figure>
   );
 }

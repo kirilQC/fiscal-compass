@@ -6,7 +6,7 @@
   max-width: 320px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--surface2) 78%, transparent);
+  background: color-mix(in srgb, var(--surface2) 64%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
