@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
 import { BarChart, Pie, Track } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
+import { prettyMerchant } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { actualSlices, groupForCategory } from "./slices";
 import { IncomePie, monthlyIncomeCents } from "./IncomePie";
@@ -228,8 +229,3 @@ function monthRange(ym: string) {
   return `${f(start)} – ${f(end)}`;
 }
 
-function prettyMerchant(m: string) {
-  const cleaned = m.replace(/^(www\.|tst\*|sq \*|fh\*)/i, "").replace(/\.com$/i, "").replace(/\s+/g, " ").trim();
-  if (cleaned !== cleaned.toUpperCase()) return cleaned;
-  return cleaned.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (_, p, c) => p + c.toUpperCase());
-}

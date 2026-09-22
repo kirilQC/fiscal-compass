@@ -13,3 +13,9 @@ export const monthLabel = (ym: string) =>
   new Date(`${ym}-01T00:00:00Z`).toLocaleString("en-US", { month: "short", timeZone: "UTC" });
 export const dateLabel = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+export const prettyMerchant = (m: string) => {
+  const cleaned = m.replace(/^(www\.|tst\*|sq \*|fh\*|ubr\*\s*)/i, "").replace(/\.com$/i, "").replace(/\s+/g, " ").trim();
+  if (cleaned !== cleaned.toUpperCase()) return cleaned;
+  return cleaned.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (_, p, c) => p + c.toUpperCase());
+};
