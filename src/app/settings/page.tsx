@@ -5,6 +5,8 @@ import { money } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
 import { AddManualAccount, BriefPreview, DetectedPaychecks, IncomeSettings, SignOut, SyncNow } from "@/components/sections/SettingsPanels";
 import { getSession } from "@/lib/session";
+import { monthToDateCost } from "@/lib/sync";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { Account } from "@/lib/types";
 import { AccountsEditor } from "@/components/sections/AccountsEditor";
@@ -14,6 +16,10 @@ export default async function SettingsPage() {
   const d = await getDashboard();
   const session = await getSession();
   let hidden: Account[] = [];
+  let monthUsd: number | null = null;
+  if (session && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try { monthUsd = (await monthToDateCost(createAdminClient(), session.userId)).monthUsd; } catch { monthUsd = null; }
+  }
   if (session) {
     const { data } = await session.supabase
       .from("accounts")
@@ -54,9 +60,9 @@ export default async function SettingsPage() {
             <AccountsEditor accounts={d.accounts} asOf={d.asOf} hidden={hidden} />
             <div className={s.actions} style={{ marginTop: 28 }}>
               <LinkAccountButton label="Link a bank through Stripe" />
-              <SyncNow />
+              <SyncNow accountCount={d.accounts.filter((a) => a.kind !== "other").length} monthUsd={monthUsd} />
             </div>
-            <p className={s.hint} style={{ marginTop: 14 }}>Balances refresh every morning at 10:00 UTC and whenever Stripe reports new data. Card and checking transactions arrive with the same sync.</p>
+            <p className={s.hint} style={{ marginTop: 14 }}>Each morning: checking and card transactions every third day, Fidelity and the loan monthly, balances weekly ($0.30 per transaction pull, $0.10 per balance). Between pulls, balances are derived from transactions already fetched.</p>
           </div>
           <div>
             <h2 className={s.h2}>Add an account by hand</h2>

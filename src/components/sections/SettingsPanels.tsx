@@ -9,17 +9,41 @@ import s from "./sections.module.css";
 
 type Msg = { busy: boolean; err?: string; msg?: string };
 
-export function SyncNow() {
+export function SyncNow({ accountCount, monthUsd }: { accountCount: number; monthUsd: number | null }) {
   const router = useRouter();
   const [state, setState] = useState<Msg>({ busy: false });
-  async function sync() {
+  const [confirm, setConfirm] = useState(false);
+  const est = (accountCount * 0.4).toFixed(2);
+
+  async function run(force: boolean) {
+    setConfirm(false);
     setState({ busy: true });
-    const r = await call("/api/sync", "POST");
-    if (r.ok) { setState({ busy: false, msg: "Synced." }); router.refresh(); } else setState({ busy: false, err: r.error });
+    const r = await call<{ estUsd?: number; paid?: { balance: number; transactions: number } }>(`/api/sync${force ? "?force=1" : ""}`, "POST");
+    if (!r.ok) return setState({ busy: false, err: r.error });
+    const paid = r.data?.paid;
+    const msg = force && paid
+      ? `Pulled ${paid.balance} balance${paid.balance === 1 ? "" : "s"} and ${paid.transactions} transaction feed${paid.transactions === 1 ? "" : "s"} · $${(r.data?.estUsd ?? 0).toFixed(2)}`
+      : "Refreshed from what Stripe already holds.";
+    setState({ busy: false, msg });
+    router.refresh();
   }
+
   return (
-    <span style={{ display: "inline-grid", gap: 6 }}>
-      <button type="button" className={`${s.button} ${s.ghost}`} onClick={sync} disabled={state.busy}>{state.busy ? "Syncing…" : "Sync now"}</button>
+    <span style={{ display: "inline-grid", gap: 8, justifyItems: "start" }}>
+      <span style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" className={s.button} onClick={() => setConfirm(true)} disabled={state.busy}>
+          {state.busy ? "Pulling…" : "Pull from bank now"}
+        </button>
+        <button type="button" className={`${s.button} ${s.ghost}`} onClick={() => run(false)} disabled={state.busy}>Recompute (free)</button>
+      </span>
+      {confirm ? (
+        <span className={s.hint} style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          Fresh balances and transactions for {accountCount} accounts · about ${est} in Stripe fees.
+          <button type="button" className={`${s.button} ${s.ghost}`} onClick={() => run(true)}>Pull · ${est}</button>
+          <button type="button" className={s.linkBtn} onClick={() => setConfirm(false)}>Cancel</button>
+        </span>
+      ) : null}
+      {monthUsd !== null ? <span className={s.hint}>Stripe fees this month: ${monthUsd.toFixed(2)}</span> : null}
       {state.err ? <span className={s.err}>{state.err}</span> : null}
       {state.msg ? <span className={s.ok}>{state.msg}</span> : null}
     </span>
