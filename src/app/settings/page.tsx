@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { Account } from "@/lib/types";
 import { AccountsEditor } from "@/components/sections/AccountsEditor";
+import { FetchLog } from "@/components/sections/FetchLog";
 import s from "@/components/sections/sections.module.css";
 
 export default async function SettingsPage() {
@@ -69,6 +70,12 @@ export default async function SettingsPage() {
             <p className={s.sub}>for the car loan, or anything Stripe can&apos;t reach</p>
             <AddManualAccount />
           </div>
+        </section>
+
+        <section className={s.section}>
+          <h2 className={s.h2}>Stripe fetch log</h2>
+          <p className={s.sub}>every balance and transaction pull from Chase and Fidelity, with the exact time it happened (Central)</p>
+          <FetchLog />
         </section>
 
         <section className={`${s.section} ${s.two}`}>

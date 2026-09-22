@@ -25,6 +25,16 @@ interface AccountRow {
   provider: string;
   provider_account_id: string | null;
   kind: string;
+  name?: string;
+}
+
+export interface FetchEntry {
+  at: string;
+  account: string;
+  feature: "balance" | "transactions" | "list" | "auto-transactions";
+  status: string;
+  usd: number;
+  note?: string;
 }
 
 export async function syncUser(admin: SupabaseClient, userId: string, mode: SyncMode = "cron") {
@@ -35,18 +45,21 @@ export async function syncUser(admin: SupabaseClient, userId: string, mode: Sync
   try {
     const { data: accounts } = await admin
       .from("accounts")
-      .select("id,user_id,provider,provider_account_id,kind")
+      .select("id,user_id,provider,provider_account_id,kind,name")
       .eq("user_id", userId)
       .eq("is_active", true);
+    const fetches: FetchEntry[] = [];
     const { data: rules } = await admin.from("category_rules").select("merchant_pattern,category,is_transfer,is_income").eq("user_id", userId);
     const lastRun = await lastSyncStarted(admin, userId);
     for (const a of (accounts ?? []) as AccountRow[]) {
       if (a.provider !== "stripe" || !a.provider_account_id) continue;
       const r = await syncStripeAccount(admin, a, (rules ?? []) as Rule[], mode, lastRun);
       addPaid(paid, r.paid);
-      detail[a.id] = r;
+      fetches.push(...r.fetches);
+      detail[a.id] = { balance: r.balance, source: r.source, transactions: r.transactions, paid: r.paid };
     }
     detail.paid = paid;
+    detail.fetches = fetches;
     detail.ai = await categorizeUnknownWithAI(admin, userId);
     detail.paychecks = await detectPaychecks(admin, userId);
     detail.prices = await refreshPrices(admin, userId);
@@ -187,7 +200,10 @@ async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Ru
   const s = stripe();
   const fcId = a.provider_account_id!;
   const paid = emptyPaid();
+  const fetches: FetchEntry[] = [];
+  const label = a.name ?? a.kind;
   let account = await s.financialConnections.accounts.retrieve(fcId);
+  const autoAt = account.transaction_refresh?.last_attempted_at;
 
   const txnDue =
     mode === "force" ||
@@ -196,7 +212,9 @@ async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Ru
     try {
       account = await refreshAndWait(s, fcId, "transactions");
       paid.transactions += 1;
-    } catch {
+      fetches.push({ at: new Date().toISOString(), account: label, feature: "transactions", status: account.transaction_refresh?.status ?? "unknown", usd: 0 });
+    } catch (e) {
+      fetches.push({ at: new Date().toISOString(), account: label, feature: "transactions", status: "failed", usd: 0, note: e instanceof Error ? e.message : String(e) });
       // Transactions feature may be unavailable; the free list below still runs.
     }
   }
@@ -209,12 +227,25 @@ async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Ru
       account = await refreshAndWait(s, fcId, "balance");
       paid.balance += 1;
       if (account.balance_refresh?.status === "succeeded") refreshedBalance = currentBalanceCents(account);
-    } catch {
+      fetches.push({ at: new Date().toISOString(), account: label, feature: "balance", status: account.balance_refresh?.status ?? "unknown", usd: 0.1 });
+    } catch (e) {
+      fetches.push({ at: new Date().toISOString(), account: label, feature: "balance", status: "failed", usd: 0.1, note: e instanceof Error ? e.message : String(e) });
       // Institution rate limit or unsupported (loans); derive below instead.
     }
   }
 
   const inserted = await pullTransactions(admin, s, a, rules);
+  if (autoAt && !fetches.some((f) => f.feature === "transactions")) {
+    fetches.push({ at: new Date(autoAt * 1000).toISOString(), account: label, feature: "auto-transactions", status: account.transaction_refresh?.status ?? "unknown", usd: 0, note: "Stripe daily subscription refresh" });
+  }
+  fetches.push({
+    at: new Date().toISOString(),
+    account: label,
+    feature: "list",
+    status: typeof inserted === "number" ? "ok" : "failed",
+    usd: 0,
+    note: typeof inserted === "number" ? `${inserted} new` : inserted.error,
+  });
 
   let balance: number | null;
   let source: "refresh" | "derived";
@@ -231,7 +262,7 @@ async function syncStripeAccount(admin: SupabaseClient, a: AccountRow, rules: Ru
       { onConflict: "account_id,as_of" },
     );
   }
-  return { balance, source, transactions: inserted, paid };
+  return { balance, source, transactions: inserted, paid, fetches };
 }
 
 // Today's balance without paying Stripe: start from the last known balance and roll forward.
@@ -431,4 +462,24 @@ export async function carryForwardHoldings(admin: SupabaseClient, userId: string
       await admin.from("balances_daily").upsert({ account_id: a.id, user_id: userId, as_of: today(), balance_cents: sum }, { onConflict: "account_id,as_of" });
     }
   }
+}
+
+export async function fetchLog(admin: SupabaseClient, userId: string, days = 60) {
+  const since = new Date(Date.now() - days * 86400_000).toISOString();
+  const { data } = await admin.from("sync_runs").select("started_at,detail").eq("user_id", userId).gte("started_at", since).order("started_at", { ascending: false }).limit(400);
+  const out: (FetchEntry & { trigger: string })[] = [];
+  const seenAuto = new Set<string>();
+  for (const r of data ?? []) {
+    const d = r.detail as { trigger?: string; fetches?: FetchEntry[] } | null;
+    for (const f of d?.fetches ?? []) {
+      if (f.feature === "auto-transactions") {
+        const key = `${f.account}|${f.at}`;
+        if (seenAuto.has(key)) continue;
+        seenAuto.add(key);
+      }
+      out.push({ ...f, trigger: d?.trigger ?? "cron" });
+    }
+  }
+  out.sort((a, b) => b.at.localeCompare(a.at));
+  return out;
 }

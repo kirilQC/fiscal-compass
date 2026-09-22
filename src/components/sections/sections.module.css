@@ -305,3 +305,5 @@
 }
 .linkBtn { color: var(--ink2); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; }
 .linkBtn:hover { color: var(--ink); }
+.tableWrap { overflow-x: auto; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
