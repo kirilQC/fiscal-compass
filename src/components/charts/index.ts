@@ -16,3 +16,5 @@ export { Pie, PIE_COLORS } from "./Pie";
 export type { PieProps, PieSlice } from "./Pie";
 export { BulletChart } from "./BulletChart";
 export type { BulletChartProps, BulletRow } from "./BulletChart";
+export { AreaChart, RANGES, smoothPath, smoothSeries } from "./AreaChart";
+export type { AreaChartProps, Range } from "./AreaChart";

@@ -60,6 +60,7 @@ export const sampleDashboard: Dashboard = {
   changeYtdPct: 13.3,
   netWorth12m: monthly([71200, 72000, 73400, 74300, 73900, 75800, 77100, 78600, 80200, 81500, 82970, 84210]),
   netWorthDaily: daily([71200, 72000, 73400, 74300, 73900, 75800, 77100, 78600, 80200, 81500, 82970, 84210]),
+  investmentDaily: daily([62400, 63100, 64200, 64900, 64300, 66000, 67100, 68000, 69000, 69800, 70300, 70980]),
   netWorth5y: [
     { date: "2021-12-31", valueCents: k(18000) },
     { date: "2022-12-31", valueCents: k(31000) },

@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import type { Account, SeriesPoint } from "@/lib/types";
 import s from "./NetWorthPanel.module.css";
+import { smoothPath, smoothSeries } from "@/components/charts/AreaChart";
 
 type Range = "1M" | "3M" | "6M" | "1Y" | "ALL";
 const RANGES: Range[] = ["1M", "3M", "6M", "1Y", "ALL"];
@@ -210,48 +211,4 @@ export function NetWorthPanel({
   );
 }
 
-// Monotone cubic interpolation: smooth without overshooting past real values.
-function smoothPath(pts: readonly (readonly [number, number])[]): string {
-  const n = pts.length;
-  if (n === 0) return "";
-  if (n < 3) return pts.map(([px, py], i) => `${i === 0 ? "M" : "L"}${px.toFixed(1)},${py.toFixed(1)}`).join(" ");
-  const dx: number[] = [], dy: number[] = [], m: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    dx.push(pts[i + 1][0] - pts[i][0]);
-    dy.push(pts[i + 1][1] - pts[i][1]);
-    m.push(dy[i] / (dx[i] || 1));
-  }
-  const t: number[] = [m[0]];
-  for (let i = 1; i < n - 1; i++) {
-    if (m[i - 1] * m[i] <= 0) t.push(0);
-    else {
-      const w1 = 2 * dx[i] + dx[i - 1], w2 = dx[i] + 2 * dx[i - 1];
-      t.push((w1 + w2) / (w1 / m[i - 1] + w2 / m[i]));
-    }
-  }
-  t.push(m[n - 2]);
-  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const h = dx[i] / 3;
-    d += ` C${(pts[i][0] + h).toFixed(1)},${(pts[i][1] + t[i] * h).toFixed(1)} ${(pts[i + 1][0] - h).toFixed(1)},${(pts[i + 1][1] - t[i + 1] * h).toFixed(1)} ${pts[i + 1][0].toFixed(1)},${pts[i + 1][1].toFixed(1)}`;
-  }
-  return d;
-}
 
-// Centered rolling mean with a Gaussian-ish weight; the final point stays exact so the headline never drifts.
-function smoothSeries(pts: SeriesPoint[], radius: number): SeriesPoint[] {
-  if (pts.length < 3 || radius < 1) return pts;
-  const weights = Array.from({ length: radius * 2 + 1 }, (_, i) => Math.exp(-((i - radius) ** 2) / (2 * (radius / 2) ** 2)));
-  return pts.map((p, i) => {
-    if (i === pts.length - 1) return p;
-    let sum = 0, wsum = 0;
-    for (let k = -radius; k <= radius; k++) {
-      const j = i + k;
-      if (j < 0 || j >= pts.length) continue;
-      const w = weights[k + radius];
-      sum += pts[j].valueCents * w;
-      wsum += w;
-    }
-    return { date: p.date, valueCents: Math.round(sum / wsum) };
-  });
-}

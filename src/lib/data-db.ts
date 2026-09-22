@@ -75,6 +75,16 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const pricesQ = symbols.length
     ? await supabase.from("prices").select("symbol,as_of,close_cents").in("symbol", symbols).gte("as_of", since3m).order("as_of")
     : { data: [] };
+  const since1y = iso(new Date(Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), now.getUTCDate())));
+  const longPricesQ = symbols.length
+    ? await supabase.from("prices").select("symbol,as_of,close_cents").in("symbol", symbols).gte("as_of", since1y).order("as_of")
+    : { data: [] };
+  const longPricesBySymbol = new Map<string, { as_of: string; close_cents: number }[]>();
+  for (const r of (longPricesQ.data ?? []) as { symbol: string; as_of: string; close_cents: number }[]) {
+    const list = longPricesBySymbol.get(r.symbol) ?? [];
+    list.push(r);
+    longPricesBySymbol.set(r.symbol, list);
+  }
   const pricesBySymbol = new Map<string, { as_of: string; close_cents: number }[]>();
   for (const r of (pricesQ.data ?? []) as { symbol: string; as_of: string; close_cents: number }[]) {
     const list = pricesBySymbol.get(r.symbol) ?? [];
@@ -153,10 +163,12 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     return historyStart > yearAgo ? historyStart : yearAgo;
   })();
   const dayTotals = new Map<string, number>();
+  const investTotals = new Map<string, number>();
   const dayKeys: string[] = [];
   for (let d = new Date(`${dailyStart}T00:00:00Z`); iso(d) <= todayIso; d = new Date(d.getTime() + 86400000)) {
     dayKeys.push(iso(d));
     dayTotals.set(iso(d), 0);
+    investTotals.set(iso(d), 0);
   }
   for (const a of accounts) {
     const list = histByAccount.get(a.id);
@@ -182,9 +194,33 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
       if (snap !== undefined) carried = snap;
       const v = day <= earliest.as_of ? (before.get(day) ?? earliest.balance_cents) : carried ?? earliest.balance_cents;
       dayTotals.set(day, (dayTotals.get(day) ?? 0) + v);
+      if (a.kind === "investment") investTotals.set(day, (investTotals.get(day) ?? 0) + v);
     }
   }
-  const netWorthDaily: SeriesPoint[] = dayKeys.map((day) => ({ date: day, valueCents: day === todayIso ? netWorthCents : dayTotals.get(day) ?? 0 }));
+  // Market-aware investment history: when a single-holding account has price history, value each day at
+  // today's implied shares × that day's close instead of the transfer-only reconstruction.
+  const investAccounts = accounts.filter((a) => a.kind === "investment");
+  const priceValue = new Map<string, number>();
+  if (investAccounts.length === 1 && holdingRows.length === 1) {
+    const list = longPricesBySymbol.get(holdingRows[0].symbol.toUpperCase()) ?? [];
+    const latestClose = list.at(-1)?.close_cents;
+    const todayValue = investTotals.get(todayIso) ?? 0;
+    if (latestClose && todayValue > 0) {
+      const shares = todayValue / latestClose;
+      let close: number | null = null;
+      let idx = 0;
+      for (const day of dayKeys) {
+        while (idx < list.length && list[idx].as_of <= day) close = list[idx++].close_cents;
+        if (close !== null) priceValue.set(day, Math.round(shares * close));
+      }
+    }
+  }
+  const investAt = (day: string) => (day === todayIso ? investTotals.get(day) ?? 0 : priceValue.get(day) ?? investTotals.get(day) ?? 0);
+  const netWorthDaily: SeriesPoint[] = dayKeys.map((day) => ({
+    date: day,
+    valueCents: day === todayIso ? netWorthCents : (dayTotals.get(day) ?? 0) - (investTotals.get(day) ?? 0) + investAt(day),
+  }));
+  const investmentDaily: SeriesPoint[] = dayKeys.map((day) => ({ date: day, valueCents: investAt(day) }));
 
   const netWorth5y: SeriesPoint[] = [];
   for (let y = now.getUTCFullYear() - 5; y < now.getUTCFullYear(); y++) {
@@ -484,6 +520,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     changeYtdPct: Math.round(changeYtdPct * 10) / 10,
     netWorth12m,
     netWorthDaily,
+    investmentDaily,
     netWorth5y,
     savingsRatePct,
     accounts: accountsOut,

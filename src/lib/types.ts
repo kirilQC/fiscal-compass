@@ -164,6 +164,7 @@ export interface Dashboard {
   changeSince?: string;
   netWorth12m: SeriesPoint[];
   netWorthDaily: SeriesPoint[];
+  investmentDaily: SeriesPoint[];
   netWorth5y: SeriesPoint[];
   savingsRatePct: number | null;
   accounts: Account[];

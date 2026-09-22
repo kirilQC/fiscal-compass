@@ -95,9 +95,11 @@ export function Pie({
 
   return (
     <figure className={`${styles.pieFig} ${className ?? ""}`}>
-      <div className={styles.pieHead}>
-        <figcaption className={styles.pieTitle}>{title}</figcaption>
-      </div>
+      {title ? (
+        <div className={styles.pieHead}>
+          <figcaption className={styles.pieTitle}>{title}</figcaption>
+        </div>
+      ) : null}
       <svg
         className={`${styles.pie} ${interactive ? styles.pieHover : ""}`}
         viewBox="0 0 208 208"

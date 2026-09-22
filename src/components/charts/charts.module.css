@@ -111,3 +111,5 @@
 .bulletName { fill: var(--ink); font-size: 12px; }
 .bulletValue { fill: var(--ink); font-family: var(--serif); font-size: 16px; font-variant-numeric: tabular-nums; }
 .bulletNote { fill: var(--ink3); font-family: var(--sans); font-size: 11px; }
+.area { width: 100%; height: auto; display: block; overflow: visible; cursor: crosshair; }
+.areaTip { fill: var(--ink); font-size: 11.5px; font-variant-numeric: tabular-nums; }
