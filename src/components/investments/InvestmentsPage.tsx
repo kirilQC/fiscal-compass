@@ -39,7 +39,6 @@ export function InvestmentsPage({ d }: Props) {
   const daily = d.investmentDaily;
   const total = d.investmentTotalCents;
   const accounts = d.accounts.filter((a) => a.kind === "investment");
-  const acctName = accounts.length === 1 ? `${accounts[0].institution} · ${prettyName(accounts[0].name)}` : accounts.map((a) => a.institution).join(", ") || "Brokerage";
   const asOf = d.asOf;
 
   const today = new Date(`${asOf}T00:00:00Z`);
@@ -57,21 +56,12 @@ export function InvestmentsPage({ d }: Props) {
   const holdings = [...d.holdings].sort((a, z) => z.valueCents - a.valueCents);
   const slices = holdings.map((h) => ({ label: h.symbol, value: h.valueCents }));
   const ghosts = Math.max(0, 3 - holdings.length);
-  const priceAsOf = holdings.find((h) => h.priceAsOf)?.priceAsOf ?? null;
 
   return (
     <main className={`wrap ${s.page}`}>
       <header className={s.hero}>
         <div>
-          <div className={s.eyebrow}>
-            <BrandLogo kind="fidelity" size={16} />
-            {acctName}
-          </div>
           <div className={`${s.total} num`}>{money(total)}</div>
-          <div className={s.faint}>
-            {holdings.length} holding{holdings.length === 1 ? "" : "s"}
-            {priceAsOf ? ` · price as of ${monthName(priceAsOf)} ${Number(priceAsOf.slice(8, 10))} close` : ""}
-          </div>
         </div>
         <BrandLogo kind="fidelity" size={132} className={s.bigLogo} />
       </header>
