@@ -273,3 +273,33 @@
 @media (max-width: 720px) {
   .suggest { grid-template-columns: 1fr; }
 }
+
+/* Essential expenses plan */
+.planRow {
+  width: 100%; display: grid; grid-template-columns: 1fr auto auto 120px; gap: 8px 20px; align-items: center;
+  padding: 14px 0; text-align: left; color: inherit; border-bottom: 1px solid var(--rule);
+}
+.planRow:hover { background: var(--surface); }
+.planRowActive { background: var(--surface2); }
+.planRowMuted { color: var(--ink2); }
+.planName { display: grid; gap: 2px; font-weight: 500; font-size: 14.5px; }
+.planName small { color: var(--ink3); font-size: 12px; font-weight: 400; }
+.planExp { font-family: var(--serif); font-size: 19px; color: var(--ink2); text-align: right; white-space: nowrap; }
+.planPaid { font-family: var(--serif); font-size: 19px; text-align: right; min-width: 88px; white-space: nowrap; }
+.planForm { padding: 16px 0 22px; max-width: none; }
+.check { display: flex; gap: 10px; align-items: center; font-size: 13.5px; color: var(--ink2); }
+.pill {
+  justify-self: end; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 9px;
+  border: 1px solid var(--rule2); border-radius: 999px; color: var(--ink2); white-space: nowrap;
+}
+.pillPaid { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.pillOverdue { color: var(--crit); border-color: color-mix(in srgb, var(--crit) 55%, transparent); }
+.pillDue { color: var(--ink2); }
+.pillVaries { color: var(--ink3); border-style: dashed; }
+.planTotals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 24px; padding: 6px 0 22px; }
+.planTotals b { display: block; font-family: var(--serif); font-size: 30px; font-weight: 300; line-height: 1.1; }
+.planTotals span { color: var(--ink3); font-size: 12.5px; }
+@media (max-width: 720px) {
+  .planRow { grid-template-columns: 1fr auto; }
+  .planPaid { display: none; }
+}

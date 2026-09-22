@@ -1,0 +1,16 @@
+import { createClient } from "@supabase/supabase-js";
+const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+const { error: pe } = await admin.from("planned_expenses").select("id", { count: "exact", head: true });
+console.log("planned_expenses table:", pe ? "MISSING: " + pe.message : "exists");
+const { data: us, error: ue } = await admin.from("user_settings").select("*").limit(1);
+console.log("user_settings:", ue?.message ?? JSON.stringify(us));
+const { data: tx } = await admin.from("transactions").select("posted_on,amount_cents,merchant,category,is_transfer,accounts!inner(kind)").order("posted_on", { ascending: false }).limit(700);
+const rows = (tx ?? []) as any[];
+const show = (label: string, f: (t: any) => boolean) => { console.log("\n== " + label); for (const t of rows.filter(f).slice(0, 12)) console.log(t.posted_on, t.amount_cents, "|", t.merchant, "|", t.category, t.is_transfer ? "T" : ""); };
+show("rent-ish (1200..1400)", (t) => t.amount_cents <= -120000 && t.amount_cents >= -140000);
+show("DOVER/GLEN/RENT", (t) => /dover|glen|rent/i.test(t.merchant));
+show("renters ~33", (t) => t.amount_cents <= -3000 && t.amount_cents >= -3600);
+show("insurance/tricare/concordia/lemonade/assurant", (t) => /tricare|concordia|lemonade|assurant|insur|renters|state farm|allstate/i.test(t.merchant));
+show("FPL/BREEZELINE", (t) => /fpl|breezeline/i.test(t.merchant));
+show("NES/T-MOBILE/AT&T/ATT/NETFLIX/PLAYSTATION/COMPASSION/TRUFIT", (t) => /nes elec|t-mobile|tmobile|at&t|\batt\b|netflix|playstation|sony|compassion|trufit/i.test(t.merchant));
+show("PROGRESSIVE", (t) => /progressive/i.test(t.merchant));

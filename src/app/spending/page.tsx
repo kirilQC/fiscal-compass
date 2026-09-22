@@ -8,6 +8,8 @@ import { BudgetEditor } from "@/components/sections/BudgetEditor";
 import { MonthLedger } from "@/components/sections/MonthLedger";
 import { RulesPanel } from "@/components/sections/RulesPanel";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
+import { PlanPanel } from "@/components/sections/PlanPanel";
+import { PlanDonut } from "@/components/overview/PlanDonut";
 import s from "@/components/sections/sections.module.css";
 
 const DEFAULT_CATEGORIES = ["Groceries", "Dining", "Transport", "Shopping", "Subscriptions", "Utilities", "Housing", "Insurance", "Health", "Entertainment", "Giving", "Business", "Fees", "Travel", "Other"];
@@ -16,6 +18,7 @@ export default async function SpendingPage() {
   const d = await getDashboard();
   if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const b = d.budget;
+  const plan = d.plan ?? null;
   const flows = d.monthlyFlow;
   const thisMonth = flows[flows.length - 1];
   const currentMonth = thisMonth?.month ?? d.asOf.slice(0, 7);
@@ -29,6 +32,11 @@ export default async function SpendingPage() {
   const paidMonths = fullMonths.filter((f) => f.incomeCents > 0);
   const typicalIncome = paidMonths.length ? paidMonths[paidMonths.length - 1].incomeCents : 0;
   const hasIncome = flows.some((f) => f.incomeCents > 0);
+  const budgetWord = b?.source === "plan" ? "planned essentials" : b?.isSuggested ? "suggested budget" : "budget";
+  const plannedSlices = plan
+    ? Object.entries(plan.items.filter((i) => !i.isReimbursed).reduce<Record<string, number>>((acc, i) => { const k = i.isDebtPayment ? "Debt" : i.category; acc[k] = (acc[k] ?? 0) + i.expectedCents; return acc; }, {})).map(([label, value]) => ({ label, value }))
+    : [];
+  const planCounts = plan ? plan.items.filter((i) => !i.isReimbursed).reduce((acc, i) => { acc[i.status]++; return acc; }, { paid: 0, due: 0, overdue: 0, varies: 0 }) : null;
 
   return (
     <>
@@ -37,7 +45,7 @@ export default async function SpendingPage() {
         <PageHead
           title="Spending"
           lede={b
-            ? `${monthName} · day ${b.dayOfMonth} of ${b.daysInMonth} · ${money(b.totalCents)} ${b.isSuggested ? "suggested budget" : "budget"}`
+            ? `${monthName} · day ${b.dayOfMonth} of ${b.daysInMonth} · ${money(b.totalCents)} ${budgetWord}`
             : `${monthName} · ${money(thisMonth?.spendCents ?? 0)} spent so far · no budget set yet`}
           figs={b ? [
             { value: money(b.spentCents), label: `spent · ${Math.round(b.pctUsed)}%` },
@@ -64,15 +72,27 @@ export default async function SpendingPage() {
                 {b.pctUsed <= pacePct
                   ? <>You&apos;re <b>{Math.round(pacePct - b.pctUsed)} points under pace</b>. Hold here and the month ends about {money(Math.abs(under))} under {b.isSuggested ? "your usual" : "budget"}.</>
                   : <>You&apos;re <b>{Math.round(b.pctUsed - pacePct)} points ahead of pace</b>. At this rate the month lands at {money(b.projectedCents)} — {money(Math.abs(under))} {under >= 0 ? "under" : "over"}.</>}
-                {b.isSuggested
+                {b.source === "plan"
+                  ? <> The limits come from your essentials plan below; anything past them is discretionary.</>
+                  : b.isSuggested
                   ? <> The category limits are your own three-month averages — save them, then tighten the ones that matter.</>
                   : over.length ? <> {over.map((c) => c.category).join(" and ")} {over.length === 1 ? "is" : "are"} already over: {over.map((c) => `${c.category} by ${money(c.spentCents - c.limitCents)}`).join(", ")}.</> : null}
               </p>
             </div>
             <div>
-              <h2 className={s.h2}>Where it went</h2>
-              <p className={s.sub}>{monthName} spending by category</p>
-              <Donut slices={b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents }))} ariaLabel={`Spending by category, ${monthName}`} formatValue={money} size={240} thickness={54} maxSlices={7} centerLabel={money(b.spentCents)} centerSub="spent" />
+              <h2 className={s.h2}>Where it goes</h2>
+              <p className={s.sub}>{plan ? "where your money is planned to go, beside where it actually went" : `${monthName} spending by category`}</p>
+              {plan ? (
+                <PlanDonut
+                  planned={{ label: "Planned each month", slices: plannedSlices, totalCents: plan.totalCents, centerSub: "planned" }}
+                  actual={{ label: `Where ${monthName} went`, slices: b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents })), totalCents: b.spentCents, centerSub: "spent" }}
+                  size={240}
+                  thickness={54}
+                  maxSlices={7}
+                />
+              ) : (
+                <Donut slices={b.categories.filter((c) => c.spentCents > 0).map((c) => ({ label: c.category, value: c.spentCents }))} ariaLabel={`Spending by category, ${monthName}`} formatValue={money} size={240} thickness={54} maxSlices={7} centerLabel={money(b.spentCents)} centerSub="spent" />
+              )}
             </div>
           </section>
         ) : (
@@ -82,6 +102,21 @@ export default async function SpendingPage() {
             </p>
           </section>
         )}
+
+        {plan ? (
+          <section className={s.section}>
+            <h2 className={s.h2}>Essential expenses</h2>
+            <p className={s.sub}>what leaves every month, checked off as each charge posts · click a row to edit</p>
+            <div className={s.planTotals}>
+              <div><b className="num">{money(plan.totalCents)}</b><span>planned each month</span></div>
+              <div><b className="num">{money(plan.paidCents)}</b><span>paid so far in {monthName}</span></div>
+              <div><b className="num">{money(plan.incomeCents)}</b><span>income · {d.settings?.payDays.length ?? 2} paychecks</span></div>
+              <div><b className={`num ${plan.leftoverCents < 0 ? "crit" : ""}`}>{money(plan.leftoverCents)}</b><span>left after essentials</span></div>
+              {planCounts ? <div><b className="num">{planCounts.paid} / {planCounts.paid + planCounts.due + planCounts.overdue}</b><span>bills paid{planCounts.overdue ? ` · ${planCounts.overdue} overdue` : ""}</span></div> : null}
+            </div>
+            <PlanPanel items={plan.items} categories={categories} />
+          </section>
+        ) : null}
 
         {b ? (
           <section className={s.section}>

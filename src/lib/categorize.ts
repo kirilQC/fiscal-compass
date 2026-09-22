@@ -19,6 +19,7 @@ export const CATEGORIES = [
   "Fees & Interest",
   "Income",
   "Transfer",
+  "Reimbursed",
   "Other",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
@@ -45,9 +46,12 @@ export interface CategorizeContext {
 type Hit = { category: Category; isTransfer?: boolean; isIncome?: boolean };
 
 const TRANSFER: Hit = { category: "Transfer", isTransfer: true };
+// Paid by Kiril and paid back later; never counts as spending.
+const REIMBURSED: Hit = { category: "Reimbursed", isTransfer: true };
 
 // Order matters: transfers and income first so "payment" merchants never land in a spend bucket.
 const KEYWORDS: Array<[RegExp, Hit]> = [
+  [/\bfpl\b|fpl direct|breezeline/i, REIMBURSED],
   [/payment to chase card|payment thank you|autopay|online payment.*to auto loan|to auto loan|loan payment|zelle|venmo|cash app|paypal transfer|electronic funds transfer|\btransfer\b|redemption from core|into core account|reinvestment/i, TRANSFER],
   [/payroll|gusto|direct dep|dir dep|salary|paycheck|interest payment/i, { category: "Income", isIncome: true }],
   [/interest charge|late fee|annual fee|foreign transaction|overdraft|service fee|finance charge/i, { category: "Fees & Interest" }],

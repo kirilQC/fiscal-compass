@@ -69,6 +69,11 @@ export default async function SettingsPage() {
           <div>
             <h2 className={s.h2}>Income &amp; commitments</h2>
             <p className={s.sub}>what to expect each pay day, and what is spoken for before anything else</p>
+            {settings.paycheckNetCents ? (
+              <p className={s.hint} style={{ marginBottom: 18 }}>
+                Monthly income <b className="num">{money(settings.paycheckNetCents * settings.payDays.length)}</b> · {settings.payDays.length} × {money(settings.paycheckNetCents)} on the {settings.payDays.join(" and ")}. Essentials are planned on the Spending page.
+              </p>
+            ) : null}
             <IncomeSettings initial={settings} />
             <h2 className={s.h2} style={{ marginTop: 36 }}>Paychecks</h2>
             <p className={s.sub}>detected from payroll deposits in checking · drives income and savings rate</p>

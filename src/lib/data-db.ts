@@ -13,6 +13,7 @@ import type {
   Transaction,
 } from "./types";
 import { getUserSettings } from "./settings";
+import { computePlan, getPlanRows, planCategoryLimits } from "./plan";
 
 interface AccountRow {
   id: string;
@@ -49,7 +50,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const monthStart = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
   const since6m = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)));
 
-  const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings] = await Promise.all([
+  const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings, planRows] = await Promise.all([
     supabase.from("accounts").select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", since5y).order("as_of"),
     supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note,status").eq("user_id", userId).gte("posted_on", since12m).order("posted_on", { ascending: false }).limit(5000),
@@ -60,6 +61,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     supabase.from("paychecks").select("pay_date,net_cents").eq("user_id", userId).gte("pay_date", since6m),
     supabase.from("advisor_notes").select("kind,body,anchor,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
     getUserSettings(supabase, userId),
+    getPlanRows(supabase, userId),
   ]);
 
   const accounts = (accountsQ.data ?? []) as AccountRow[];
@@ -242,7 +244,34 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const spentCents = thisMonthSpend.reduce((s, t) => s - t.amount_cents, 0);
   let budget: BudgetSummary | null = null;
   const budgetRow = budgetQ.data as { total_cents: number; budget_categories: { category: string; limit_cents: number }[] } | null;
-  if (!budgetRow) {
+  const monthlyIncomeCents = settings.paycheckNetCents ? settings.paycheckNetCents * settings.payDays.length : 0;
+  const plan = planRows.length
+    ? computePlan(planRows, txns.filter((t) => t.posted_on >= iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), -3)))), monthlyIncomeCents, now)
+    : null;
+  if (!budgetRow && plan) {
+    // The essentials plan is the budget until one is saved by hand.
+    const limits = planCategoryLimits(plan);
+    const spentByCat = new Map<string, number>();
+    for (const t of thisMonthSpend) spentByCat.set(t.category, (spentByCat.get(t.category) ?? 0) - t.amount_cents);
+    const categories = [...limits.entries()].map(([category, limitCents]) => ({ category, limitCents, spentCents: spentByCat.get(category) ?? 0 }));
+    for (const [cat, spent] of spentByCat) {
+      if (!categories.some((c) => c.category === cat)) categories.push({ category: cat, limitCents: 0, spentCents: spent });
+    }
+    const total = [...limits.values()].reduce((a, b) => a + b, 0);
+    budget = {
+      month: ym(monthStart),
+      totalCents: total,
+      spentCents,
+      remainingCents: total - spentCents,
+      pctUsed: total ? Math.round((spentCents / total) * 100) : 0,
+      dayOfMonth,
+      daysInMonth,
+      projectedCents: Math.round((spentCents / dayOfMonth) * daysInMonth),
+      categories: markCommitments(categories.sort((a, b) => b.spentCents - a.spentCents), settings.tithePct),
+      isSuggested: false,
+      source: "plan",
+    };
+  } else if (!budgetRow) {
     // No budget saved yet: propose one from the last three full months so the page is never blank.
     const months: string[] = [];
     for (let i = 3; i >= 1; i--) months.push(ym(iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1)))));
@@ -279,6 +308,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
         projectedCents: Math.round((spentCents / dayOfMonth) * daysInMonth),
         categories: markCommitments(categories.sort((a, b) => b.spentCents - a.spentCents), settings.tithePct),
         isSuggested: true,
+        source: "suggested",
       };
     }
   }
@@ -303,6 +333,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
       daysInMonth,
       projectedCents: Math.round((spentCents / dayOfMonth) * daysInMonth),
       categories: markCommitments(categories.sort((a, b) => b.spentCents - a.spentCents), settings.tithePct),
+      source: "saved",
     };
   }
 
@@ -442,6 +473,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     brief,
     detectedTickers,
     settings,
+    plan,
     historyNote: reconstructedBefore
       ? `History before ${reconstructedBefore} is reconstructed from transactions; market movement in investments is not captured until daily snapshots accumulate.`
       : null,

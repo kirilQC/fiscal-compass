@@ -58,13 +58,24 @@ export function buildContext(d: Dashboard): string {
 
   if (d.budget) {
     const b = d.budget;
-    L.push(`\nBudget ${b.month}: ${money(b.totalCents)} total, spent ${money(b.spentCents)} (${b.pctUsed}%) on day ${b.dayOfMonth} of ${b.daysInMonth}; ${money(b.remainingCents)} left; projected month-end ${money(b.projectedCents)}`);
+    L.push(`\nBudget ${b.month}${b.source === "plan" ? " (derived from the essentials plan)" : b.isSuggested ? " (suggested from averages)" : ""}: ${money(b.totalCents)} total, spent ${money(b.spentCents)} (${b.pctUsed}%) on day ${b.dayOfMonth} of ${b.daysInMonth}; ${money(b.remainingCents)} left; projected month-end ${money(b.projectedCents)}`);
     for (const c of b.categories) {
       const over = c.spentCents > c.limitCents && c.category !== "Giving";
       L.push(`- ${c.category}: ${money(c.spentCents)} / ${money(c.limitCents)}${c.category === "Giving" ? " — tithe, a commitment" : over ? ` — OVER by ${money(c.spentCents - c.limitCents)}` : c.limitCents && c.spentCents / c.limitCents > 0.9 ? " — near limit" : ""}`);
     }
   } else {
     L.push("\nBudget: none set.");
+  }
+
+  if (d.plan && d.plan.items.length) {
+    const p = d.plan;
+    L.push(`\nEssential expenses plan (monthly): ${money(p.totalCents)} committed against ${money(p.incomeCents)} income → ${money(p.leftoverCents)} left after essentials. Paid so far this month: ${money(p.paidCents)}.`);
+    for (const i of p.items) {
+      const exp = i.pctOfIncome != null ? `${i.pctOfIncome}% of income (${money(i.expectedCents)})` : i.amountCents != null ? money(i.amountCents) : i.amountMinCents != null ? `${money(i.amountMinCents)}–${money(i.amountMaxCents ?? i.amountMinCents)}` : "varies";
+      const st = i.status === "paid" ? `paid ${money(i.paidCents)}${i.paidOn ? ` on ${i.paidOn}` : ""}` : i.status === "varies" ? `${money(i.paidCents)} so far` : i.status === "overdue" ? `OVERDUE (due day ${i.dueDay})` : `due${i.dueDay ? ` day ${i.dueDay}` : ""}`;
+      L.push(`- ${i.name} [${i.isReimbursed ? "REIMBURSED — not spending" : i.isDebtPayment ? "debt payment" : i.category}]: ${exp} — ${st}`);
+    }
+    L.push("Reimbursed items (FPL, Breezeline) are paid by Kiril and paid back; exclude them from spending, budget and advice.");
   }
 
   if (d.monthlyFlow.length) {

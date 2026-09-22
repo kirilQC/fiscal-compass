@@ -49,6 +49,33 @@ export interface BudgetSummary {
   projectedCents: number;
   categories: CategoryBudget[];
   isSuggested?: boolean;
+  source?: "plan" | "saved" | "suggested";
+}
+
+export interface PlanItem {
+  id: string;
+  name: string;
+  category: string;
+  expectedCents: number;
+  amountCents: number | null;
+  amountMinCents: number | null;
+  amountMaxCents: number | null;
+  pctOfIncome: number | null;
+  merchantPattern: string | null;
+  dueDay: number | null;
+  isReimbursed: boolean;
+  isDebtPayment: boolean;
+  paidCents: number;
+  paidOn: string | null;
+  status: "paid" | "due" | "overdue" | "varies";
+}
+
+export interface PlanSummary {
+  items: PlanItem[];
+  totalCents: number; // expected monthly outflow, reimbursed excluded
+  paidCents: number;
+  incomeCents: number;
+  leftoverCents: number; // income − plan
 }
 
 export interface MonthlyFlow {
@@ -115,6 +142,7 @@ export interface Dashboard {
   historyNote?: string | null;
   detectedTickers?: string[];
   settings?: { paycheckNetCents: number | null; payDays: number[]; tithePct: number; notes: string };
+  plan?: PlanSummary | null;
   netWorthCents: number;
   changeMtdCents: number;
   changeYtdCents: number;

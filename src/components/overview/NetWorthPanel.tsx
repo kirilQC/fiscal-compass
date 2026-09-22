@@ -14,12 +14,6 @@ const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleString("
 const monthLabel = (iso: string, withYear: boolean) =>
   new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", withYear ? { month: "short", year: "numeric", timeZone: "UTC" } : { month: "short", timeZone: "UTC" });
 
-function niceStep(span: number) {
-  const raw = span / 3;
-  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
-  for (const m of [1, 2, 2.5, 5, 10]) if (m * pow >= raw) return m * pow;
-  return 10 * pow;
-}
 
 export function NetWorthPanel({
   netWorthCents,
