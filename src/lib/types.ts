@@ -142,6 +142,7 @@ export interface Annotation {
 
 export interface Dashboard {
   asOf: string;
+  syncedAt?: string | null;
   isSample: boolean;
   needsSetup?: boolean;
   loadError?: string;

@@ -77,9 +77,6 @@ export function AccountsList({ accounts }: { accounts: Account[] }) {
     <section className={s.section}>
       <div className={s.head}>
         <h2 className={s.h2}>Accounts</h2>
-        <Link href="/settings" className={s.manage}>
-          Manage accounts <span aria-hidden="true">↗</span>
-        </Link>
       </div>
       <ul className={s.list}>
         {rows.map((a) => {

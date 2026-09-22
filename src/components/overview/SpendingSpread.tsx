@@ -3,7 +3,7 @@ import type { Dashboard } from "@/lib/types";
 import { BarChart, Pie, Track, toneVar } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
-import { PlanDonut, actualSlices } from "./PlanDonut";
+import { actualSlices } from "./PlanDonut";
 import { toneOf } from "./util";
 import s from "./overview.module.css";
 
@@ -48,7 +48,6 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
   const typicalIncome = fullMonths.length ? fullMonths[fullMonths.length - 1].incomeCents : 0;
   const anomaly = d.recentTransactions.find((t) => t.anomalyNote);
   const categories = b.categories.filter((c) => c.limitCents > 0 || c.spentCents > 0);
-  const plan = d.plan ?? null;
 
   return (
     <section className={s.spread}>
@@ -79,26 +78,12 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
           height={150}
           style={{ marginTop: 30 }}
         />
-        <div className={s.meta} style={{ marginTop: 6 }}>
-          <span>{d.savingsRatePct !== null ? `savings rate ${d.savingsRatePct}% this year` : ""}</span>
-          <span>dashed = projected to month end</span>
-        </div>
       </div>
       <div>
-        {plan ? (
-          <div className={s.subOffset}>
-            <PlanDonut items={plan.items} categories={b.categories} monthName={monthName} size={420} />
-            <p className={s.meta} style={{ marginTop: 14 }}>
-              <span>Leftover after essentials</span>
-              <span className={`num ${plan.leftoverCents < 0 ? "crit" : ""}`}>{money(plan.leftoverCents)} of {money(plan.incomeCents)}</span>
-            </p>
-          </div>
-        ) : (
-          <div className={s.subOffset}>
-            <Pie slices={actualSlices(b.categories)} title={`Where ${monthName} went (Total: ${money(b.spentCents)})`} ariaLabel={`Spending by group, ${monthName}`} formatValue={money} size={420} />
-          </div>
-        )}
-        {b.isSuggested ? <div style={{ marginTop: 34 }}><SaveSuggestedBudget budget={b} compact /></div> : <p className={s.sub} style={{ marginTop: 34 }}>Categories · of budget</p>}
+        <div className={s.subOffset}>
+          <Pie slices={actualSlices(b.categories)} title={`Where ${monthName} went (Total: ${money(b.spentCents)})`} ariaLabel={`Spending by group, ${monthName}`} formatValue={money} size={420} />
+        </div>
+        {b.isSuggested ? <div style={{ marginTop: 34 }}><SaveSuggestedBudget budget={b} compact /></div> : null}
         {categories.map((c) => {
           const pct = c.limitCents ? (c.spentCents / c.limitCents) * 100 : 0;
           const tone = c.isCommitment ? "good" : toneOf(pct);

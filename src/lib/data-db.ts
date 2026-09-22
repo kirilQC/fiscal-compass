@@ -50,6 +50,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const monthStart = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
   const since6m = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)));
 
+  const lastSyncQ = await supabase.from("sync_runs").select("started_at,finished_at").eq("user_id", userId).eq("status", "ok").order("started_at", { ascending: false }).limit(1).maybeSingle();
   const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings, planRows] = await Promise.all([
     supabase.from("accounts").select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", since5y).order("as_of"),
@@ -461,6 +462,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
 
   return {
     asOf: todayIso,
+    syncedAt: lastSyncQ.data?.finished_at ?? lastSyncQ.data?.started_at ?? null,
     isSample: false,
     netWorthCents,
     changeMtdCents,
