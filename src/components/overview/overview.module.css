@@ -230,9 +230,11 @@
 
 .pies { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
 @media (max-width: 1000px) { .pies { grid-template-columns: 1fr; } }
-.spreadWide { grid-template-columns: 1fr 2fr; }
-@media (max-width: 1100px) { .spreadWide { grid-template-columns: 1fr; } }
-.spreadWide .pies { margin-top: 0; }
+.spreadWide { grid-template-columns: 1.3fr 1fr 1fr; gap: 48px; align-items: start; }
+@media (max-width: 1200px) { .spreadWide { grid-template-columns: 1fr 1fr; } .spreadWide > div:first-child { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .spreadWide { grid-template-columns: 1fr; } }
+.pieCol { padding-top: 6px; }
+.pieTitleMuted { color: var(--ink3); font-weight: 400; }
 .cardHero { display: flex; align-items: center; gap: 36px; flex-wrap: wrap; }
 .cardHero > img { flex: none; }
 .hint { margin: 10px 0 0; color: var(--ink3); font-size: 12px; }

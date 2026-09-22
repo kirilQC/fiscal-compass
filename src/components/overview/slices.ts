@@ -2,7 +2,7 @@ import type { PieSlice } from "@/components/charts";
 import type { CategoryBudget, PlanItem } from "@/lib/types";
 
 const GROUPS = ["Rent", "Car Costs", "Groceries", "Dining", "Shopping", "Subscriptions & Internet", "Health & Renters Insurance", "Giving", "Utilities", "Business tools", "Travel", "Other"] as const;
-type Group = (typeof GROUPS)[number];
+export type Group = (typeof GROUPS)[number];
 
 function groupForPlanItem(i: PlanItem): Group {
   const n = i.name.toLowerCase();
@@ -19,7 +19,7 @@ function groupForPlanItem(i: PlanItem): Group {
   return "Other";
 }
 
-function groupForCategory(c: string): Group {
+export function groupForCategory(c: string): Group {
   switch (c) {
     case "Housing": return "Rent";
     case "Transport": return "Car Costs";
