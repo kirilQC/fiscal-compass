@@ -13,16 +13,14 @@ const NAV = [
   { href: "/spending", label: "Spending", Icon: SpendingIcon },
   { href: "/goals", label: "Goals", Icon: GoalsIcon },
   { href: "/advisor", label: "Advisor", Icon: AdvisorIcon },
+  { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
 
 function BrandInner() {
   return (
     <>
-      <LogoMark />
-      <span className={styles.wordmark}>
-        <span>Fiscal</span>
-        <span>Compass</span>
-      </span>
+      <LogoMark size={22} />
+      <span className={styles.wordmark}>Fiscal Compass</span>
     </>
   );
 }
@@ -31,7 +29,7 @@ export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: 
   const pathname = usePathname();
   return (
     <header className={styles.bar}>
-      <div className={`wrap ${styles.inner}`}>
+      <div className={styles.pill}>
         <Link href="/" className={styles.brand}>
           <BrandInner />
         </Link>
@@ -46,15 +44,13 @@ export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: 
             );
           })}
         </nav>
-        <div className={styles.meta}>
-          {isSample ? <span className={styles.sample} title={`As of ${asOf}`}>Sample data</span> : null}
-          <Link href="/settings" className={`${styles.settings} ${pathname.startsWith("/settings") ? styles.active : ""}`} aria-label="Settings">
-            <SettingsIcon />
-            <span className={styles.label}>Settings</span>
-          </Link>
-        </div>
       </div>
-      {loadError ? <div className={`wrap ${styles.error}`}>Couldn&apos;t build your dashboard from live data — showing sample numbers. {loadError}</div> : null}
+      {isSample || loadError ? (
+        <div className={styles.below}>
+          {isSample ? <span className={styles.sample} title={`As of ${asOf}`}>Sample data</span> : null}
+          {loadError ? <span className={styles.error}>Couldn&apos;t build your dashboard from live data — showing sample numbers. {loadError}</span> : null}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -62,7 +58,7 @@ export function TopBar({ asOf, isSample, loadError }: { asOf: string; isSample: 
 export function TopBarSkeleton() {
   return (
     <header className={styles.bar}>
-      <div className={`wrap ${styles.inner}`}>
+      <div className={styles.pill}>
         <span className={styles.brand}>
           <BrandInner />
         </span>

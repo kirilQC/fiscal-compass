@@ -54,10 +54,8 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
     <section className={s.spread}>
       <div>
         <h2 className={s.h2}>Spending</h2>
-        <div className={`${s.fig} num`}>
-          {money(b.spentCents)}
-          <small>spent · {money(Math.abs(b.remainingCents))} {b.remainingCents >= 0 ? "left" : "over"}</small>
-        </div>
+        <div className={`${s.fig} num`}>{money(b.spentCents)}</div>
+        <p className={s.range}>{monthRange(b.month)}</p>
         <Track pct={b.pctUsed} pacePct={pacePct} tone={b.pctUsed > pacePct + 10 ? "warn" : "accent"} ariaLabel="Budget used versus pace" />
         <div className={s.meta}>
           <span>{Math.round(b.pctUsed)}% used</span>
@@ -128,4 +126,11 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
       </div>
     </section>
   );
+}
+
+function monthRange(ym: string) {
+  const start = new Date(`${ym}-01T00:00:00Z`);
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+  const f = (d: Date) => d.toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `${f(start)} – ${f(end)}`;
 }

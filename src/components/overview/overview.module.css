@@ -222,3 +222,8 @@
 }
 .empty a { color: var(--accent); }
 .empty b { color: var(--ink); font-weight: 400; }
+
+.heads { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 18px; }
+.heads .fig { margin-top: 6px; }
+.small { display: inline-block; margin-top: 6px; color: var(--accent); font-size: 12.5px; }
+.range { margin: 0 0 22px; color: var(--ink2); font-size: 14px; letter-spacing: 0.01em; }

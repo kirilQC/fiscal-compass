@@ -82,17 +82,19 @@ export function AccountsList({ accounts }: { accounts: Account[] }) {
         </Link>
       </div>
       <ul className={s.list}>
-        {rows.map((a, i) => {
+        {rows.map((a) => {
           const missing = (a.kind === "loan" || a.kind === "credit") && a.balanceCents === 0;
           const value = a.balanceCents;
           return (
-            <li key={a.id} className={i === 0 ? s.lead : undefined}>
-              <Link href={missing ? "/settings" : href(a)} className={s.row}>
-                <span className={s.icon}>
-                  <KindIcon kind={a.kind} />
+            <li key={a.id}>
+              <Link href={missing ? "/settings" : href(a)} className={s.box}>
+                <span className={s.top}>
+                  <span className={s.icon}>
+                    <KindIcon kind={a.kind} />
+                  </span>
+                  <span className={s.name}>{label(a)}</span>
+                  <span className={s.sub}>{sub(a)}</span>
                 </span>
-                <span className={s.name}>{label(a)}</span>
-                <span className={s.sub}>{sub(a)}</span>
                 {missing ? (
                   <span className={s.add}>Add balance <b>+</b></span>
                 ) : (
