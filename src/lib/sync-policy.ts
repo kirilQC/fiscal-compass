@@ -5,7 +5,7 @@ import type Stripe from "stripe";
 // So accounts stay subscribed to Stripe's daily transaction refresh, and balance refreshes are rationed.
 export const COST_BALANCE_USD = 0.1;
 export const COST_TRANSACTIONS_INSTITUTION_MONTH_USD = 0.3;
-export const BALANCE_INTERVAL_DAYS = 7;
+export const BALANCE_INTERVAL_DAYS = 1;
 // Explicit transaction refreshes are only needed when the daily subscription has gone quiet.
 export const TRANSACTION_STALE_DAYS = 3;
 
