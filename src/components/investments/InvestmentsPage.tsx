@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type { Dashboard, Holding, SeriesPoint } from "@/lib/types";
 import { money } from "@/lib/format";
-import { prettyName } from "@/components/sections/names";
 import { BrandLogo } from "@/components/BrandLogo";
 import { AreaChart, RANGES, type Range } from "@/components/charts/AreaChart";
 import { Pie, PIE_COLORS, Sparkline } from "@/components/charts";
@@ -38,7 +37,6 @@ export function InvestmentsPage({ d }: Props) {
   const [range, setRange] = useState<Range>("6M");
   const daily = d.investmentDaily;
   const total = d.investmentTotalCents;
-  const accounts = d.accounts.filter((a) => a.kind === "investment");
   const asOf = d.asOf;
 
   const today = new Date(`${asOf}T00:00:00Z`);
