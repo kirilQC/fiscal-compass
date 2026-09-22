@@ -6,6 +6,7 @@ import type { Account } from "@/lib/types";
 import { money } from "@/lib/format";
 import { call, toCents } from "./api";
 import { prettyName } from "./names";
+import { BrandLogo } from "@/components/BrandLogo";
 import s from "./sections.module.css";
 
 const KIND_LABEL: Record<string, string> = { checking: "Checking", savings: "Savings", credit: "Credit card", loan: "Loan", investment: "Investment", other: "Other" };
@@ -103,9 +104,12 @@ function AccountRow({ a, asOf }: { a: Account; asOf: string }) {
   return (
     <div className={s.acct}>
       <div className={s.row}>
-        <span className={s.n}>
-          {a.institution} {prettyName(a.name)}
-          <small>{detail}</small>
+        <span className={s.n} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {a.institution.toLowerCase().includes("chase") ? <BrandLogo kind="chase" size={14} /> : a.institution.toLowerCase().includes("fidelity") ? <BrandLogo kind="fidelity" size={20} /> : null}
+          <span>
+            {a.institution} {prettyName(a.name)}
+            <small style={{ display: "block" }}>{detail}</small>
+          </span>
         </span>
         <button type="button" className={s.link} onClick={() => setOpen(!open)} aria-expanded={open}>{open ? "Close" : "Edit"}</button>
         <span className={`${s.v} num ${a.balanceCents < 0 ? "muted" : ""}`}>

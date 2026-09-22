@@ -227,3 +227,8 @@
 .heads .fig { margin-top: 6px; }
 .small { display: inline-block; margin-top: 6px; color: var(--accent); font-size: 12.5px; }
 .range { margin: 0 0 22px; color: var(--ink2); font-size: 14px; letter-spacing: 0.01em; }
+
+.pies { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+@media (max-width: 900px) { .pies { grid-template-columns: 1fr; } }
+.cardHero { display: flex; align-items: center; gap: 36px; flex-wrap: wrap; }
+.cardHero > img { flex: none; }

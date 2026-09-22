@@ -5,6 +5,7 @@ import { LineChart, Ring } from "@/components/charts";
 import { HoldingCard } from "@/components/HoldingCard";
 import { money, monthLabel, pct } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
+import { BrandLogo } from "@/components/BrandLogo";
 import o from "@/components/overview/overview.module.css";
 import s from "@/components/sections/sections.module.css";
 import { prettyName } from "@/components/sections/names";
@@ -42,7 +43,7 @@ export default async function InvestmentsPage() {
       <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <main className="wrap">
         <PageHead
-          title="Investments"
+          title={<span style={{ display: "inline-flex", alignItems: "center", gap: 14 }}><BrandLogo kind="fidelity" size={28} />Investments</span>}
           lede={`${investAccounts.map((a) => `${a.institution} ${prettyName(a.name)}`).join(", ") || "Brokerage"} · ${noHoldings ? "positions not connected yet" : `${d.holdings.length} holdings`}`}
           figs={[
             { value: money(d.investmentTotalCents), label: "total value" },

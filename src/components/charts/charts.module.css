@@ -97,7 +97,7 @@
 .pieLegend li { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink2); }
 .pieLegend i { width: 22px; height: 22px; border-radius: 50%; flex: none; }
 .pie { width: 100%; height: auto; display: block; margin: 8px auto 0; }
-.pieLabel { fill: #1d1a1b; font-family: var(--sans); font-weight: 700; font-size: 7px; font-variant-numeric: tabular-nums; }
+.pieLabel { font-family: var(--sans); font-weight: 700; font-size: 7px; font-variant-numeric: tabular-nums; }
 
 /* Plan vs actual bullets */
 .bulletHead { fill: var(--ink3); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }

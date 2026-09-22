@@ -1,7 +1,7 @@
 import type { Holding } from "@/lib/types";
 import { Sparkline } from "@/components/charts";
 import { money } from "@/lib/format";
-import { TickerBadge } from "./TickerBadge";
+import { BrandLogo } from "./BrandLogo";
 import s from "./HoldingCard.module.css";
 
 const price = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -11,7 +11,7 @@ export function HoldingCard({ h }: { h: Holding }) {
   const hasPrice = h.priceCents !== null;
   return (
     <div className={s.card}>
-      <TickerBadge symbol={h.symbol} />
+      {h.symbol === "SPY" ? <BrandLogo kind="spdr" size={36} /> : <span className={s.ticker}>{h.symbol}</span>}
       <div className={s.id}>
         <div className={s.name}>
           <b>{h.symbol}</b>

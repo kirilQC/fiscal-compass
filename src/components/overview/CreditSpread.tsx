@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Dashboard } from "@/lib/types";
 import { BarChart, LineChart } from "@/components/charts";
 import { money, monthLabel } from "@/lib/format";
+import { BrandLogo } from "@/components/BrandLogo";
 import s from "./overview.module.css";
 
 export function CreditSpread({ d }: { d: Dashboard }) {
@@ -17,7 +18,9 @@ export function CreditSpread({ d }: { d: Dashboard }) {
     <section className={s.spread}>
       <div>
         <h2 className={s.h2}>Credit</h2>
-        <div className={s.heads}>
+        <div className={s.cardHero}>
+          <BrandLogo kind="chase-card" size={220} />
+          <div className={s.heads}>
           <div>
             <span className="eyebrow">Current balance</span>
             <div className={`${s.fig} num`}>{money(c.balanceCents)}</div>
@@ -26,6 +29,7 @@ export function CreditSpread({ d }: { d: Dashboard }) {
             <span className="eyebrow">Utilization</span>
             <div className={`${s.fig} num`}>{hasLimit ? `${Math.round((c.balanceCents / c.limitCents) * 100)}%` : "—"}</div>
             {hasLimit ? null : <Link href="/settings" className={s.small}>Set your limit in Settings</Link>}
+          </div>
           </div>
         </div>
         {hasLimit && util.length > 1 ? (

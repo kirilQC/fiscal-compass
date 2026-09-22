@@ -4,6 +4,7 @@ import { BarChart, Pie, Track, toneVar } from "@/components/charts";
 import { dateLabel, money, monthLabel, moneyExact } from "@/lib/format";
 import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { actualSlices } from "./slices";
+import { IncomePie } from "./IncomePie";
 import { toneOf } from "./util";
 import s from "./overview.module.css";
 
@@ -80,8 +81,9 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
         />
       </div>
       <div>
-        <div className={s.subOffset}>
+        <div className={`${s.subOffset} ${s.pies}`}>
           <Pie slices={actualSlices(b.categories)} title={`Where ${monthName} went (Total: ${money(b.spentCents)})`} ariaLabel={`Spending by group, ${monthName}`} formatValue={money} size={420} />
+          <IncomePie d={d} size={420} />
         </div>
         {b.isSuggested ? <div style={{ marginTop: 34 }}><SaveSuggestedBudget budget={b} compact /></div> : null}
         {categories.map((c) => {

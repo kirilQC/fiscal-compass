@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LinkAccountButton } from "./LinkAccountButton";
+import { BrandLogo } from "./BrandLogo";
 import styles from "./Onboarding.module.css";
 
 export function Onboarding() {
@@ -15,6 +16,7 @@ export function Onboarding() {
       <ol className={styles.steps}>
         <li>
           <div className={styles.stepHead}>
+            <BrandLogo kind="chase" size={16} />
             <span className={styles.stepName}>Chase</span>
             <span className="faint">Checking, savings, Sapphire card</span>
           </div>
@@ -23,6 +25,7 @@ export function Onboarding() {
         </li>
         <li>
           <div className={styles.stepHead}>
+            <BrandLogo kind="fidelity" size={30} />
             <span className={styles.stepName}>Fidelity</span>
             <span className="faint">Brokerage balance</span>
           </div>

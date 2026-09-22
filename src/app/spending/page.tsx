@@ -11,6 +11,7 @@ import { SaveSuggestedBudget } from "@/components/sections/SaveSuggestedBudget";
 import { PlanPanel } from "@/components/sections/PlanPanel";
 import { PlanDonut } from "@/components/overview/PlanDonut";
 import { actualSlices } from "@/components/overview/slices";
+import { IncomePie } from "@/components/overview/IncomePie";
 import { planCategoryLimits } from "@/lib/plan";
 import s from "@/components/sections/sections.module.css";
 
@@ -86,6 +87,9 @@ export default async function SpendingPage() {
               ) : (
                 <Pie slices={actualSlices(b.categories)} title={`Where ${monthName} went (Total: ${money(b.spentCents)})`} ariaLabel={`Spending by group, ${monthName}`} formatValue={money} size={520} />
               )}
+              <div style={{ marginTop: 40 }}>
+                <IncomePie d={d} size={520} />
+              </div>
             </div>
           </section>
         ) : (

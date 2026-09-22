@@ -4,9 +4,9 @@ import { Onboarding } from "@/components/Onboarding";
 import { BarChart, LineChart, Ring, Track } from "@/components/charts";
 import { dateLabel, money, moneyExact, monthLabel } from "@/lib/format";
 import { PageFoot, PageHead } from "@/components/sections/PageHead";
-import Link from "next/link";
 import s from "@/components/sections/sections.module.css";
 import { prettyName } from "@/components/sections/names";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default async function CreditPage() {
   const d = await getDashboard();
@@ -42,7 +42,8 @@ export default async function CreditPage() {
             return (
               <section className={`${s.section} ${s.two}`} key={c.accountId}>
                 <div>
-                  <h2 className={s.h2}>{name}</h2>
+                  <BrandLogo kind="chase-card" size={220} />
+                  <h2 className={s.h2} style={{ marginTop: 22 }}>{name}</h2>
                   <p className={s.sub}>limit not set</p>
                   <div className={s.figs}><div><b className="num">{money(c.balanceCents)}</b><span>owed today</span></div></div>
                 </div>
@@ -66,7 +67,8 @@ export default async function CreditPage() {
             <section className={s.section} key={c.accountId}>
               <div className={s.two}>
                 <div>
-                  <h2 className={s.h2}>{name}</h2>
+                  <BrandLogo kind="chase-card" size={220} />
+                  <h2 className={s.h2} style={{ marginTop: 22 }}>{name}</h2>
                   <p className={s.sub}>
                     {money(c.limitCents)} limit{c.dueOn ? ` · ${money(c.balanceCents)} due ${dateLabel(c.dueOn)}` : ""}
                   </p>

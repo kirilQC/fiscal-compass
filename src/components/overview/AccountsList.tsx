@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Account } from "@/lib/types";
 import { prettyName } from "@/components/sections/names";
+import { BrandLogo } from "@/components/BrandLogo";
 import s from "./AccountsList.module.css";
 
 const ICON = {
@@ -50,6 +51,20 @@ function KindIcon({ kind }: { kind: Account["kind"] }) {
   }
 }
 
+function Logo({ a }: { a: Account }) {
+  const inst = a.institution.toLowerCase();
+  if (inst.includes("fidelity")) return <BrandLogo kind="fidelity" size={34} />;
+  if (inst.includes("chase")) {
+    if (a.kind === "credit") return <BrandLogo kind="chase-card" size={56} />;
+    return <BrandLogo kind="chase-mark" size={30} />;
+  }
+  return (
+    <span className={s.icon}>
+      <KindIcon kind={a.kind} />
+    </span>
+  );
+}
+
 function sub(a: Account) {
   if (a.kind === "investment") return a.name.toLowerCase().includes("brokerage") ? prettyName(a.name) : "Brokerage";
   if (a.kind === "checking" || a.kind === "savings") return "Cash";
@@ -86,9 +101,7 @@ export function AccountsList({ accounts }: { accounts: Account[] }) {
             <li key={a.id}>
               <Link href={missing ? "/settings" : href(a)} className={s.box}>
                 <span className={s.top}>
-                  <span className={s.icon}>
-                    <KindIcon kind={a.kind} />
-                  </span>
+                  <Logo a={a} />
                   <span className={s.name}>{label(a)}</span>
                   <span className={s.sub}>{sub(a)}</span>
                 </span>
