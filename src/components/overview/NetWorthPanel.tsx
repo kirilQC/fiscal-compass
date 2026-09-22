@@ -10,11 +10,6 @@ const DAYS: Record<Range, number | null> = { "1M": 31, "3M": 92, "6M": 183, "1Y"
 
 const fmtK = (cents: number) => `$${Math.round(cents / 100000)}k`;
 const fmtMoney = (cents: number) => `$${Math.round(cents / 100).toLocaleString("en-US")}`;
-const fmtSigned = (cents: number) => {
-  const abs = Math.abs(cents) / 100;
-  const body = abs >= 1000 ? `$${(abs / 1000).toFixed(abs % 1000 === 0 ? 0 : 1)}k` : `$${Math.round(abs)}`;
-  return `${cents < 0 ? "−" : "+"}${body}`;
-};
 const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 const monthLabel = (iso: string, withYear: boolean) =>
   new Date(`${iso}T00:00:00Z`).toLocaleString("en-US", withYear ? { month: "short", year: "numeric", timeZone: "UTC" } : { month: "short", timeZone: "UTC" });
@@ -35,7 +30,7 @@ export function NetWorthPanel({
   daily: SeriesPoint[];
   accounts: Account[];
 }) {
-  const [range, setRange] = useState<Range>("6M");
+  const [range, setRange] = useState<Range>("3M");
   const [mode, setMode] = useState<"line" | "bars">("line");
   const [hover, setHover] = useState<number | null>(null);
   const gradId = useId();
@@ -85,13 +80,6 @@ export function NetWorthPanel({
   });
   if (monthMarks.length === 0 && n) monthMarks.push({ i: 0, label: monthLabel(points[0].date, true) });
 
-  const diffs = points.map((p, i) => (i === 0 ? 0 : p.valueCents - points[i - 1].valueCents));
-  const absDiffs = diffs.map((d) => Math.abs(d)).filter((d) => d > 0).sort((a, b) => a - b);
-  const p90 = absDiffs.length ? absDiffs[Math.min(absDiffs.length - 1, Math.floor(absDiffs.length * 0.9))] : 100000;
-  const diffScale = niceStep(Math.max(50000, p90) * 3);
-  const SH = 44;
-  const mid = SH / 2;
-  const barW = Math.max(1, ((W - padL - padR) / Math.max(1, n)) * 0.55);
 
   const monthlyBars = useMemo(() => {
     const out: { label: string; value: number; date: string }[] = [];
@@ -194,20 +182,9 @@ export function NetWorthPanel({
               </g>
             ) : null}
           </svg>
-          <svg className={`chart ${s.strip2}`} viewBox={`0 0 ${W} ${SH + 16}`} role="img" aria-label="Daily change in net worth">
-            <text x="0" y={mid + 1} className={s.stripLabel}>Daily</text>
-            <text x="0" y={mid + 12} className={s.stripLabel}>change</text>
-            <line x1={padL} x2={W - padR} y1={mid} y2={mid} className="grid" />
-            {diffs.map((d, i) => {
-              if (i === 0 || d === 0) return null;
-              const h = Math.min(mid, (Math.abs(d) / diffScale) * mid);
-              return <rect key={i} x={x(i) - barW / 2} y={d > 0 ? mid - h : mid} width={barW} height={h} fill={d > 0 ? "var(--pos)" : "var(--accent)"} opacity={d > 0 ? 0.8 : 0.95} />;
-            })}
-            <text x={W - padR + 4} y={5} className={s.axisR}>{fmtSigned(diffScale)}</text>
-            <text x={W - padR + 4} y={mid + 4} className={s.axisR}>0</text>
-            <text x={W - padR + 4} y={SH + 2} className={`${s.axisR} ${s.axisNeg}`}>{fmtSigned(-diffScale)}</text>
+          <svg className={`chart ${s.strip2}`} viewBox={`0 0 ${W} 18`} role="presentation" aria-hidden="true">
             {monthMarks.map((m) => (
-              <text key={m.i} x={x(m.i)} y={SH + 14} textAnchor={m.i === 0 ? "start" : "middle"}>{m.label}</text>
+              <text key={m.i} x={x(m.i)} y={13} textAnchor={m.i === 0 ? "start" : "middle"}>{m.label}</text>
             ))}
           </svg>
         </div>

@@ -1,0 +1,10 @@
+import { createClient } from "@supabase/supabase-js";
+const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+const { data: acc } = await admin.from("accounts").select("id,user_id").eq("kind", "investment").eq("is_active", true).single();
+if (!acc) throw new Error("no investment account");
+const { data: bal } = await admin.from("balances_daily").select("balance_cents,as_of").eq("account_id", acc.id).order("as_of", { ascending: false }).limit(1).single();
+const { data: h, error } = await admin.from("holdings").upsert({ user_id: acc.user_id, account_id: acc.id, symbol: "SPY", name: "SPDR S&P 500 ETF", asset_class: "us_equity", target_pct: 100 }, { onConflict: "account_id,symbol" }).select().single();
+if (error) throw error;
+await admin.from("holdings_daily").upsert({ holding_id: h.id, user_id: acc.user_id, as_of: bal!.as_of, value_cents: bal!.balance_cents });
+const { error: e2 } = await admin.from("user_settings").upsert({ user_id: acc.user_id, paycheck_net_cents: 285000, pay_days: [1, 15], tithe_pct: 10 });
+console.log("SPY holding =", bal!.balance_cents, "settings:", e2 ?? "ok");
