@@ -84,6 +84,18 @@ export interface PlanSummary {
   leftoverCents: number; // income − plan
 }
 
+export interface DiscretionarySummary {
+  month: string; // YYYY-MM
+  incomeCents: number;
+  essentialsPlannedCents: number;
+  availableCents: number;
+  budgetCents: number;
+  spentTotalCents: number;
+  spentEssentialCents: number;
+  spentDiscretionaryCents: number;
+  history: { month: string; spentCents: number }[];
+}
+
 export interface MonthlyFlow {
   month: string; // YYYY-MM
   incomeCents: number;
@@ -157,6 +169,7 @@ export interface Dashboard {
   detectedTickers?: string[];
   settings?: { paycheckNetCents: number | null; payDays: number[]; tithePct: number; notes: string };
   plan?: PlanSummary | null;
+  discretionary: DiscretionarySummary;
   netWorthCents: number;
   changeMtdCents: number;
   changeYtdCents: number;

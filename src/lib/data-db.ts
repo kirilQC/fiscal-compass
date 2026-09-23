@@ -10,10 +10,12 @@ import type {
   LoanSummary,
   MonthlyFlow,
   MonthlySpending,
+  DiscretionarySummary,
   SeriesPoint,
   Transaction,
 } from "./types";
 import { getUserSettings } from "./settings";
+import { splitSpend, defaultBudgetCents } from "./discretionary";
 import { computePlan, getPlanRows, planCategoryLimits } from "./plan";
 
 interface AccountRow {
@@ -411,6 +413,31 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     });
   }
 
+  // Discretionary: what is left after the essentials plan, and how much of it has been spent.
+  const discIncomeCents = monthlyIncomeCents || (monthlySpending.at(-1)?.incomeCents ?? 0);
+  const essentialsPlannedCents = plan?.totalCents ?? 0;
+  const availableCents = Math.max(0, discIncomeCents - essentialsPlannedCents);
+  const thisMonthSplit = splitSpend(thisMonthSpend, planRows, discIncomeCents);
+  const discHistory = monthlySpending.map((m) => ({
+    month: m.month,
+    spentCents: splitSpend(
+      txns.filter((t) => ym(t.posted_on) === m.month),
+      planRows,
+      monthlyIncomeCents || m.incomeCents,
+    ).discretionaryCents,
+  }));
+  const discretionary: DiscretionarySummary = {
+    month: ym(monthStart),
+    incomeCents: discIncomeCents,
+    essentialsPlannedCents,
+    availableCents,
+    budgetCents: settings.discretionaryBudgetCents ?? defaultBudgetCents(availableCents),
+    spentTotalCents: thisMonthSplit.totalCents,
+    spentEssentialCents: thisMonthSplit.essentialCents,
+    spentDiscretionaryCents: thisMonthSplit.discretionaryCents,
+    history: discHistory,
+  };
+
   let savingsRatePct: number | null = null;
   if (paychecks.length) {
     const last3 = monthlyFlow.slice(-4, -1);
@@ -532,6 +559,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     budget,
     monthlyFlow,
     monthlySpending,
+    discretionary,
     credit,
     loans,
     goals,
