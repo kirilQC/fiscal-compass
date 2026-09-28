@@ -107,7 +107,7 @@ async function identifyWithAI(merchants: string[]): Promise<Record<string, Resol
       tools: [{ type: "web_search" }],
       instructions:
         'You identify the company behind US card/bank statement merchant strings so an app can show its logo. The cardholder lives in Tampa FL and travels. For each input reply in ONLY a JSON object mapping the input exactly as given to {"brand": short display name or null, "domain": the business\'s own website domain or null}. Search the web for local businesses. Prefixes like "TST*", "SQ *", "SP ", "FH*" are card processors, not the merchant. Use null for payments to individual people, cash, fees, and anything you cannot confirm; never guess a domain, and never return a directory, social or delivery site.',
-      input: JSON.stringify(merchants.slice(0, 40)),
+      input: JSON.stringify(merchants),
     });
     const text = res.output_text?.trim() ?? "";
     return JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Record<string, Resolved>;
@@ -143,16 +143,23 @@ export async function resolveLogos(admin: SupabaseClient, userId: string, mercha
     if (domain) rows.push({ merchant_key: key, brand: null, domain, logo_path: null, source: "dictionary" });
     else unknown.push([key, merchant]);
   }
-  const ai = await identifyWithAI(unknown.map(([, m]) => m));
-  if (ai) {
-    for (const [key, merchant] of unknown.slice(0, 40)) {
+  // Web search takes ~5s a merchant, so ask in batches of 10 and cap each run; the rest wait for the next sync.
+  let unresolved = 0;
+  for (let i = 0; i < unknown.length; i += 10) {
+    const batch = unknown.slice(i, i + 10);
+    const ai = i < 30 ? await identifyWithAI(batch.map(([, m]) => m)) : null;
+    if (!ai) {
+      unresolved += batch.length;
+      continue;
+    }
+    for (const [key, merchant] of batch) {
       const hit = ai[merchant];
       rows.push({ merchant_key: key, brand: hit?.brand ?? null, domain: hit?.domain?.toLowerCase().replace(/^www\./, "") || null, logo_path: null, source: hit?.domain ? "ai" : "none" });
     }
   }
   for (const r of rows) if (r.domain) r.logo_path = await storeDomainLogo(admin, r.domain);
   if (rows.length) await admin.from("merchant_logos").upsert(rows.map((r) => ({ ...r, user_id: userId, checked_at: new Date().toISOString() })), { onConflict: "user_id,merchant_key" });
-  return { added: rows.length, unresolved: ai ? 0 : unknown.length };
+  return { added: rows.length, unresolved };
 }
 
 /** merchant key → public logo URL, for every merchant with a stored logo. */

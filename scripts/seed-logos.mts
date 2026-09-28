@@ -1,7 +1,7 @@
 // One-off: stores logos for every existing merchant. Chains come from the brand list in src/lib/logos.ts;
 // local businesses from a web-research pass (2026-09-28). New merchants are resolved during sync.
 import { createClient } from "@supabase/supabase-js";
-import { brandDomain, logoKey, storeDomainLogo, LOGO_BUCKET } from "../src/lib/logos.ts";
+import { brandDomain, logoKey, resolveLogos, storeDomainLogo, LOGO_BUCKET } from "../src/lib/logos.ts";
 
 const LOCAL: [RegExp, string][] = [
   [/giancarlos/i, "giancarlostpa.com"], [/blind tiger/i, "blindtigercoffeeroasters.com"], [/trip s diner/i, "tripsdiner.com"], [/qamaria/i, "qamariacoffee.com"],
@@ -34,9 +34,14 @@ if (!DRY) {
 }
 const rows: Record<string, unknown>[] = [];
 const noLogo: string[] = [];
+const forAI: string[] = [];
 for (const [key, { merchant, userId }] of byKey) {
   const local = LOCAL.find(([re]) => re.test(merchant))?.[1] ?? null;
   const domain = local ?? brandDomain(merchant);
+  if (!domain) {
+    forAI.push(merchant); // unknown here: the AI web search in resolveLogos gets a turn
+    continue;
+  }
   const path = domain && !DRY ? await storeDomainLogo(admin, domain) : null;
   if (!domain || (!DRY && !path)) noLogo.push(`${merchant}${domain ? ` (${domain}: no usable icon)` : ""}`);
   rows.push({ user_id: userId, merchant_key: key, brand: null, domain, logo_path: path, source: local ? "research" : domain ? "dictionary" : "none", checked_at: new Date().toISOString() });
@@ -45,5 +50,11 @@ if (!DRY) {
   const { error } = await admin.from("merchant_logos").upsert(rows, { onConflict: "user_id,merchant_key" });
   if (error) throw new Error(error.message);
 }
-console.log(`${rows.length} merchants · ${rows.length - noLogo.length} with logos · ${noLogo.length} without`);
-console.log(noLogo.sort().join("\n"));
+console.log(`${rows.length} known merchants · ${rows.length - noLogo.length} with logos`);
+if (noLogo.length) console.log("no usable icon:\n  " + noLogo.sort().join("\n  "));
+if (!DRY && forAI.length) {
+  const userId = [...byKey.values()][0].userId;
+  for (let i = 0; i < forAI.length; i += 40) console.log("AI lookup:", await resolveLogos(admin, userId, forAI.slice(i, i + 40)));
+  const { data } = await admin.from("merchant_logos").select("merchant_key,domain,logo_path,source").eq("source", "ai");
+  console.log("AI found:\n  " + (data ?? []).map((r) => `${r.merchant_key} → ${r.domain}${r.logo_path ? "" : " (no icon)"}`).join("\n  "));
+}
