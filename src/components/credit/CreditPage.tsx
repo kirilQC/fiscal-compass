@@ -8,6 +8,7 @@ import { dateLabel, money, moneyExact, monthLabel, prettyMerchant } from "@/lib/
 import { prettyName } from "@/components/sections/names";
 import type { Account, CreditSummary } from "@/lib/types";
 import s from "./CreditPage.module.css";
+import { MerchantCell } from "@/components/MerchantLogo";
 
 type Txn = {
   id: string;
@@ -21,6 +22,7 @@ type Txn = {
   isTransfer?: boolean;
   isIncome?: boolean;
   status?: string;
+  logoUrl?: string | null;
 };
 
 type Props = { credit: CreditSummary[]; accounts: Account[]; month: string };
@@ -309,10 +311,11 @@ function TxnTable({ rows, isAll }: { rows: Txn[]; isAll: boolean }) {
           <tr key={t.id} className={t.status === "pending" ? s.pending : undefined}>
             <td className={`${s.date} num`}>{dateLabel(t.postedOn)}</td>
             <td>
-              {prettyMerchant(t.merchant)}
-              <span className={s.tag}>{t.category}</span>
-              {isAll ? <span className={s.acct}>{prettyName(t.accountName)}</span> : null}
-              {t.status === "pending" ? <span className={s.acct}>pending</span> : null}
+              <MerchantCell src={t.logoUrl} name={prettyMerchant(t.merchant)}>
+                <span className={s.tag}>{t.category}</span>
+                {isAll ? <span className={s.acct}>{prettyName(t.accountName)}</span> : null}
+                {t.status === "pending" ? <span className={s.acct}>pending</span> : null}
+              </MerchantCell>
             </td>
             <td className={`${s.r} num`}>−{moneyExact(Math.abs(t.amountCents))}</td>
           </tr>

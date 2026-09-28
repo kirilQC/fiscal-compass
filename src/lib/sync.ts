@@ -5,6 +5,7 @@ import { revalidateDashboard } from "./cache";
 import { categorize, categorizeMerchantsWithAI, cleanMerchant, normalizeMerchant, type Rule } from "./categorize";
 import { PAYROLL_RE } from "./settings";
 import { refreshPrices } from "./prices";
+import { resolveLogos } from "./logos";
 import {
   BALANCE_INTERVAL_DAYS,
   TRANSACTION_STALE_DAYS,
@@ -62,6 +63,7 @@ export async function syncUser(admin: SupabaseClient, userId: string, mode: Sync
     detail.fetches = fetches;
     detail.ai = await categorizeUnknownWithAI(admin, userId);
     detail.paychecks = await detectPaychecks(admin, userId);
+    detail.logos = await syncLogos(admin, userId);
     detail.prices = await refreshPrices(admin, userId);
     await carryForwardHoldings(admin, userId);
     await alignHoldingsToBalances(admin, userId);
@@ -121,6 +123,17 @@ export async function monthToDateCost(admin: SupabaseClient, userId: string) {
     breakdown: { balancesUsd: totals.estUsd, transactionsUsd },
     refreshes,
   };
+}
+
+// New merchants get their company logo looked up once; known ones are skipped at no cost.
+async function syncLogos(admin: SupabaseClient, userId: string) {
+  const since = new Date(Date.now() - 45 * 86400_000).toISOString().slice(0, 10);
+  const { data } = await admin.from("transactions").select("merchant").eq("user_id", userId).eq("is_transfer", false).gte("posted_on", since).limit(2000);
+  try {
+    return await resolveLogos(admin, userId, (data ?? []).map((t) => t.merchant));
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
 }
 
 // Payroll deposits become paychecks automatically; nothing is ever entered by hand.

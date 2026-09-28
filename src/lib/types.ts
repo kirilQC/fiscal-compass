@@ -153,6 +153,7 @@ export interface Transaction {
   accountName: string;
   anomalyNote: string | null;
   isIncome: boolean;
+  logoUrl?: string | null;
 }
 
 export interface Annotation {

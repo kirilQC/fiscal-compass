@@ -22,6 +22,7 @@ interface Txn {
   category: string;
   isTransfer: boolean;
   isIncome: boolean;
+  logoUrl?: string | null;
 }
 
 type PieId = "breakdown" | "income";
@@ -103,7 +104,7 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
     const rows: PopupRow[] = cached
       .filter((t) => !t.isTransfer && !t.isIncome && t.amountCents < 0 && groupForCategory(t.category) === slice.label)
       .sort((a, z) => a.amountCents - z.amountCents)
-      .map((t) => ({ postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents }));
+      .map((t) => ({ postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents, logoUrl: t.logoUrl }));
     return { title: slice.label, meta, rows, totalCents: slice.value, totalCount: rows.length };
   }, [hover, pieSlices, cached, spent, left, income]);
 

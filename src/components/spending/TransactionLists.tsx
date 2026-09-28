@@ -6,6 +6,7 @@ import { CategorySelect } from "@/components/sections/CategorySelect";
 import { SPEND_CATEGORIES, type SpendClass, type Tag } from "@/lib/spend";
 import { SpendTag } from "./SpendTag";
 import s from "./SpendingPage.module.css";
+import { MerchantCell } from "@/components/MerchantLogo";
 
 export interface Txn {
   id: string;
@@ -20,6 +21,7 @@ export interface Txn {
   status: string;
   spendClass: Tag | null;
   spendClassManual?: boolean;
+  logoUrl?: string | null;
 }
 
 const CATEGORIES: string[] = [...SPEND_CATEGORIES];
@@ -41,10 +43,11 @@ function Table({ rows, onRetag }: { rows: Txn[]; onRetag?: (id: string, next: Sp
           <tr key={t.id} className={t.status === "pending" ? s.pending : undefined}>
             <td className={`${s.date} num`}>{dateLabel(t.postedOn)}</td>
             <td>
-              {prettyMerchant(t.merchant)}
-              <span className={s.muted}>{t.accountName}</span>
-              {t.status === "pending" ? <span className={s.muted}>pending</span> : null}
-              {t.isTransfer ? <span className={s.tag}>transfer</span> : null}
+              <MerchantCell src={t.logoUrl} name={prettyMerchant(t.merchant)}>
+                <span className={s.muted}>{t.accountName}</span>
+                {t.status === "pending" ? <span className={s.muted}>pending</span> : null}
+                {t.isTransfer ? <span className={s.tag}>transfer</span> : null}
+              </MerchantCell>
             </td>
             <td>{t.spendClass ? <SpendTag key={t.spendClass} id={t.id} value={t.spendClass} onChange={(next) => onRetag?.(t.id, next)} /> : <span className={s.muted}>—</span>}</td>
             <td><CategorySelect id={t.id} value={t.category} options={CATEGORIES} /></td>

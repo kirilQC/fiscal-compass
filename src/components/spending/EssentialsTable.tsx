@@ -8,6 +8,7 @@ import { call } from "@/components/sections/api";
 import { SPEND_CATEGORIES } from "@/lib/spend";
 import type { Txn } from "./TransactionLists";
 import s from "./SpendingPage.module.css";
+import { MerchantCell } from "@/components/MerchantLogo";
 
 const CATEGORIES = SPEND_CATEGORIES.filter((c) => c !== "Reimbursed");
 
@@ -127,7 +128,7 @@ function Detail({ item, txns, onChanged, onClose }: { item: PlanItem; txns: Txn[
       </div>
       {matched.length ? (
         <ul className={s.planMatched}>
-          {matched.map((t) => <li key={t.id}><span>{dateLabel(t.postedOn)} · {prettyMerchant(t.merchant)}</span><span className="num">{moneyExact(-t.amountCents)}</span></li>)}
+          {matched.map((t) => <li key={t.id}><MerchantCell src={t.logoUrl} name={`${dateLabel(t.postedOn)} · ${prettyMerchant(t.merchant)}`} size={20} /><span className="num">{moneyExact(-t.amountCents)}</span></li>)}
         </ul>
       ) : null}
       <div className={s.planActions}>

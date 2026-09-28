@@ -7,6 +7,7 @@ import { dateLabel, money, moneyExact, prettyMerchant } from "@/lib/format";
 import type { SpendClass } from "@/lib/spend";
 import type { PlanSuggestion, Review, ReviewGroup } from "@/app/api/transactions/review/route";
 import s from "./SpendingPage.module.css";
+import { MerchantCell } from "@/components/MerchantLogo";
 
 const SHOW = 5;
 
@@ -18,12 +19,11 @@ function Groups({ groups, busy, onTag, keepLabel }: { groups: ReviewGroup[]; bus
       <ul className={s.reviewList}>
         {shown.map((g) => (
           <li key={g.key} className={s.reviewRow}>
-            <div>
-              <div className={s.reviewName}>{prettyMerchant(g.merchant)}</div>
+            <MerchantCell src={g.logoUrl} name={prettyMerchant(g.merchant)} size={32}>
               <div className={s.muted} style={{ marginLeft: 0 }}>
                 {g.category} · {g.count > 1 ? `${g.count} charges · ` : ""}{money(g.totalCents)} · last {dateLabel(g.lastOn)}
               </div>
-            </div>
+            </MerchantCell>
             <div className={s.reviewBtns}>
               <button type="button" className={s.spendTag} disabled={busy === g.key} onClick={() => onTag(g, "essential")}>Essential</button>
               <button type="button" className={`${s.spendTag} ${s.disc}`} disabled={busy === g.key} onClick={() => onTag(g, "discretionary")}>{keepLabel ?? "Discretionary"}</button>
@@ -91,10 +91,9 @@ export function TagReview({ onChanged, refreshKey }: { onChanged: () => void; re
           <ul className={s.reviewList}>
             {suggestions.map((sg) => (
               <li key={sg.txnId} className={s.reviewRow}>
-                <div>
-                  <div className={s.reviewName}>{prettyMerchant(sg.merchant)} · {moneyExact(sg.amountCents)}</div>
+                <MerchantCell src={sg.logoUrl} name={`${prettyMerchant(sg.merchant)} · ${moneyExact(sg.amountCents)}`} size={32}>
                   <div className={s.muted} style={{ marginLeft: 0 }}>{dateLabel(sg.postedOn)} · looks like <b>{sg.planItemName}</b> ({money(sg.expectedCents)} expected)</div>
-                </div>
+                </MerchantCell>
                 <div className={s.reviewBtns}>
                   <button type="button" className={s.spendTag} disabled={busy === sg.txnId} onClick={() => answer(sg)}>Yes, {sg.planItemName}</button>
                   <button type="button" className={`${s.spendTag} ${s.untagged}`} disabled={busy === sg.txnId} onClick={() => answer(sg, "essential")}>No · other essential</button>

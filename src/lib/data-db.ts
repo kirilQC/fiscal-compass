@@ -17,6 +17,7 @@ import type {
 import { getUserSettings } from "./settings";
 import { splitSpend, defaultBudgetCents } from "./discretionary";
 import { isSpend } from "./spend";
+import { logoKey, logoUrls } from "./logos";
 import { computePlan, getPlanRows, planCategoryLimits } from "./plan";
 
 interface AccountRow {
@@ -55,7 +56,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const since6m = iso(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1)));
 
   const lastSyncQ = await supabase.from("sync_runs").select("started_at,finished_at").eq("user_id", userId).eq("status", "ok").order("started_at", { ascending: false }).limit(1).maybeSingle();
-  const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings, planRows] = await Promise.all([
+  const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings, planRows, logos] = await Promise.all([
     supabase.from("accounts").select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", since5y).order("as_of"),
     supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note,status,spend_class").eq("user_id", userId).gte("posted_on", since12m).order("posted_on", { ascending: false }).limit(5000),
@@ -67,6 +68,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     supabase.from("advisor_notes").select("kind,body,anchor,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
     getUserSettings(supabase, userId),
     getPlanRows(supabase, userId),
+    logoUrls(supabase, userId),
   ]);
 
   const accounts = (accountsQ.data ?? []) as AccountRow[];
@@ -518,6 +520,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     accountName: accountName.get(t.account_id) ?? "",
     anomalyNote: t.anomaly_note,
     isIncome: t.is_income,
+    logoUrl: logos.get(logoKey(t.merchant)) ?? null,
   }));
 
   const tickerCount = new Map<string, number>();

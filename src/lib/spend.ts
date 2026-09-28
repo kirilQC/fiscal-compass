@@ -67,7 +67,7 @@ export function normalizeMerchant(merchant: string): string {
     .replace(/\b(ppd|web|ccd|arc)\s+id:?\s*\S+/gi, " ")
     .replace(/\+?1?\d{3}[-\s.]?\d{3}[-\s.]?\d{4}/g, " ")
     .replace(/\b\d{3}-\d{7,}\b/g, " ")
-    .replace(/[#*]\s*[A-Z0-9]{3,}\b/gi, " ")
+    .replace(/[#*]\s*(?=[A-Z]*\d)[A-Z0-9]{3,}\b/gi, " ")
     .replace(/\b[A-Z0-9]*\d[A-Z0-9]*\b/gi, " ")
     .replace(/\b(mountain vie|amzn\.com\/bill|g\.co\/helppay|www\.|\.com)\b/gi, " ")
     .replace(/\b[A-Z]{2}\b\s*$/i, " ")

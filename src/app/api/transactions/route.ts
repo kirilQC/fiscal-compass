@@ -1,6 +1,7 @@
 import { withUser } from "@/lib/api";
 import { spendClass } from "@/lib/spend";
 import { loadClassifier } from "@/lib/tags";
+import { logoKey, logoUrls } from "@/lib/logos";
 
 export async function GET(request: Request) {
   return withUser(async ({ supabase, userId }) => {
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
     const [y, m] = month.split("-").map(Number);
     const start = `${month}-01`;
     const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-    const [{ data, error }, classifier] = await Promise.all([
+    const [{ data, error }, classifier, logos] = await Promise.all([
       supabase
         .from("transactions")
         .select("id,account_id,posted_on,merchant,amount_cents,category,is_transfer,is_income,status,anomaly_note,spend_class,accounts!inner(name,kind)")
@@ -21,6 +22,7 @@ export async function GET(request: Request) {
         .order("posted_on", { ascending: false })
         .limit(limit),
       loadClassifier(supabase, userId),
+      logoUrls(supabase, userId),
     ]);
     if (error) throw new Error(error.message);
     type Row = {
@@ -44,6 +46,7 @@ export async function GET(request: Request) {
         anomalyNote: t.anomaly_note,
         spendClass: spendClass(t, classifier),
         spendClassManual: t.spend_class !== null,
+        logoUrl: logos.get(logoKey(t.merchant)) ?? null,
       };
     });
   });

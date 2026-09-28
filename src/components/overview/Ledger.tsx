@@ -3,6 +3,7 @@ import type { Dashboard } from "@/lib/types";
 import { dateLabel, moneyExact } from "@/lib/format";
 import { prettyName } from "@/components/sections/names";
 import s from "./overview.module.css";
+import { MerchantCell } from "@/components/MerchantLogo";
 
 export function Ledger({ d }: { d: Dashboard }) {
   if (!d.recentTransactions.length) return null;
@@ -27,8 +28,9 @@ export function Ledger({ d }: { d: Dashboard }) {
               <tr key={t.id}>
                 <td className="num">{dateLabel(t.postedOn)}</td>
                 <td>
-                  {t.merchant}
-                  {t.anomalyNote ? <span className={s.flag}>Unusual · {t.anomalyNote}</span> : null}
+                  <MerchantCell src={t.logoUrl} name={t.merchant} size={24}>
+                    {t.anomalyNote ? <span className={s.flag}>Unusual · {t.anomalyNote}</span> : null}
+                  </MerchantCell>
                 </td>
                 <td className={s.hideNarrow}>
                   {t.category} <span className={s.acct}>· {prettyName(t.accountName)}</span>
