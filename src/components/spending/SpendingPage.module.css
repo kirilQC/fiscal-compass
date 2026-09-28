@@ -80,3 +80,12 @@
 .spendTag:hover { color: var(--ink); border-color: var(--ink3); }
 .spendTag.disc { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .spendTag:disabled { opacity: 0.6; cursor: default; }
+
+.review { border: 1px solid var(--rule2); padding: 18px 20px 14px; margin: 0 0 28px; }
+.reviewHead .lede { margin-top: 2px; }
+.reviewList { list-style: none; margin: 10px 0 0; padding: 0; }
+.reviewRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--rule); }
+.reviewName { font-size: 14px; color: var(--ink); }
+.reviewBtns { display: flex; gap: 6px; flex-shrink: 0; }
+.untagged { color: var(--ink3); border-style: dashed; }
+@media (max-width: 560px) { .reviewRow { flex-direction: column; align-items: flex-start; gap: 8px; } }

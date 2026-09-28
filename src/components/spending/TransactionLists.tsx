@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { dateLabel, moneyExact, prettyMerchant } from "@/lib/format";
 import { CategorySelect } from "@/components/sections/CategorySelect";
-import { SPEND_CATEGORIES, type SpendClass } from "@/lib/spend";
+import { SPEND_CATEGORIES, type SpendClass, type Tag } from "@/lib/spend";
 import { SpendTag } from "./SpendTag";
 import s from "./SpendingPage.module.css";
 
@@ -18,7 +18,7 @@ export interface Txn {
   isTransfer: boolean;
   isIncome: boolean;
   status: string;
-  spendClass: SpendClass | null;
+  spendClass: Tag | null;
   spendClassManual?: boolean;
 }
 

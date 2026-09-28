@@ -20,6 +20,7 @@ export const CATEGORIES = [
   "Education",
   "Loan Payment",
   "Payments to People",
+  "Wedding",
   "Cash",
   "Fees & Interest",
   "Income",
@@ -33,15 +34,20 @@ export type Category = (typeof CATEGORIES)[number];
 export const SPEND_CATEGORIES = CATEGORIES.filter((c) => c !== "Income" && c !== "Transfer");
 
 export type SpendClass = "essential" | "discretionary";
+// "untagged": not sure from the name alone, so it waits in the Spending page's review box for Kiril to tag.
+export type Tag = SpendClass | "untagged";
 
 // Money moving between Kiril's own accounts: card payments, brokerage sweeps, account verification.
 export const INTERNAL_MOVE_RE =
   /payment to chase card|payment thank you|autopay|online transfer (to|from)|redemption from core|into core account|reinvestment|acctverify/i;
 
+// Only categories that settle the question on their own get a tag automatically.
 const ESSENTIAL_CATEGORIES = new Set(["Housing", "Insurance", "Utilities", "Health", "Giving", "Fitness", "Groceries", "Loan Payment", "Reimbursed"]);
+const DISCRETIONARY_CATEGORIES = new Set(["Dining", "Shopping", "Subscriptions", "Entertainment", "Travel", "Personal Care", "Fees & Interest"]);
 
-// Transport splits by merchant: fuel is essential, rides, scooters and parking are not.
-const FUEL_RE = /mapco|shell|exxon|\bbp\b|chevron|circle k|speedway|marathon|7-eleven|sunoco|valero|racetrac|quiktrip|wawa|pilot|love's|murphy|citgo|mobil|texaco|costco gas/i;
+// Transport splits by merchant: fuel is essential, ride apps and scooters are not, anything else waits for Kiril.
+const FUEL_RE = /mapco|shell|exxon|\bbp\b|chevron|circle ?k|speedway|marathon|7-eleven|sunoco|valero|racetrac|quiktrip|wawa|pilot|love's|murphy|citgo|mobil|texaco|thorntons|buc-ee|costco gas/i;
+const RIDE_RE = /uber|lyft|lime\*|bird\b|waymo/i;
 
 export interface ClassTxn {
   amount_cents: number;
@@ -55,16 +61,49 @@ export interface ClassTxn {
 // `is_transfer` marks internal moves only; everything else that leaves an account is spend.
 export const isSpend = (t: ClassTxn) => t.amount_cents < 0 && !t.is_income && !t.is_transfer;
 
+/** Stable merchant key: drops store numbers, reference IDs and phone numbers so recurring charges group together. */
+export function normalizeMerchant(merchant: string): string {
+  return merchant
+    .replace(/\b(ppd|web|ccd|arc)\s+id:?\s*\S+/gi, " ")
+    .replace(/\+?1?\d{3}[-\s.]?\d{3}[-\s.]?\d{4}/g, " ")
+    .replace(/\b\d{3}-\d{7,}\b/g, " ")
+    .replace(/[#*]\s*[A-Z0-9]{3,}\b/gi, " ")
+    .replace(/\b[A-Z0-9]*\d[A-Z0-9]*\b/gi, " ")
+    .replace(/\b(mountain vie|amzn\.com\/bill|g\.co\/helppay|www\.|\.com)\b/gi, " ")
+    .replace(/\b[A-Z]{2}\b\s*$/i, " ")
+    .replace(/[^\w&'.\- ]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .toUpperCase()
+    .slice(0, 40) || merchant.trim().toUpperCase().slice(0, 40);
+}
+
 /** Merchant patterns of active plan rows: any match is an essential bill. */
 export const essentialPatterns = (rows: { merchant_pattern: string | null; is_active?: boolean }[]) =>
   rows.filter((r) => r.merchant_pattern && r.is_active !== false).map((r) => r.merchant_pattern!.toLowerCase());
 
-export function spendClass(t: ClassTxn, patterns: string[]): SpendClass | null {
+/** What Kiril has tagged by hand, per merchant; the newest tag wins and carries to that merchant's other charges. */
+export function tagMemory(rows: { merchant: string; spend_class: string | null; posted_on?: string }[]): Map<string, SpendClass> {
+  const out = new Map<string, SpendClass>();
+  const sorted = [...rows].sort((a, b) => (a.posted_on ?? "").localeCompare(b.posted_on ?? ""));
+  for (const r of sorted) if (r.spend_class === "essential" || r.spend_class === "discretionary") out.set(normalizeMerchant(r.merchant), r.spend_class);
+  return out;
+}
+
+export interface Classifier {
+  patterns: string[];
+  memory: Map<string, SpendClass>;
+}
+
+export function spendClass(t: ClassTxn, c: Classifier): Tag | null {
   if (!isSpend(t)) return null;
   if (t.spend_class === "essential" || t.spend_class === "discretionary") return t.spend_class;
+  const remembered = c.memory.get(normalizeMerchant(t.merchant));
+  if (remembered) return remembered;
   const merchant = t.merchant.toLowerCase();
-  if (patterns.some((p) => merchant.includes(p))) return "essential";
+  if (c.patterns.some((p) => merchant.includes(p))) return "essential";
   if (ESSENTIAL_CATEGORIES.has(t.category)) return "essential";
-  if (t.category === "Transport" && FUEL_RE.test(t.merchant)) return "essential";
-  return "discretionary";
+  if (DISCRETIONARY_CATEGORIES.has(t.category)) return "discretionary";
+  if (t.category === "Transport") return FUEL_RE.test(t.merchant) ? "essential" : RIDE_RE.test(t.merchant) ? "discretionary" : "untagged";
+  return "untagged";
 }

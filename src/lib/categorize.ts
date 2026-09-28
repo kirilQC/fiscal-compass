@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 
-import { CATEGORIES, INTERNAL_MOVE_RE, type Category } from "./spend";
+import { CATEGORIES, INTERNAL_MOVE_RE, normalizeMerchant, type Category } from "./spend";
 
-export { CATEGORIES, type Category };
+export { CATEGORIES, normalizeMerchant, type Category };
 
 export interface Rule {
   merchant_pattern: string;
@@ -34,7 +34,8 @@ const KEYWORDS: Array<[RegExp, Hit]> = [
   [/\bfpl\b|fpl direct|breezeline/i, REIMBURSED],
   [INTERNAL_MOVE_RE, TRANSFER],
   [/to auto loan|loan payment|sunbit/i, { category: "Loan Payment" }],
-  [/kings crossing|pintes investment/i, { category: "Housing" }],
+  [/pintes investment/i, { category: "Housing" }],
+  [/kings crossing/i, { category: "Wedding" }],
   [/barrington barber/i, { category: "Personal Care" }],
   [/zelle|venmo|cash app|paypal/i, { category: "Payments to People" }],
   [/withdrawal|\batm\b|funds transfer paid \(cash\)/i, { category: "Cash" }],
@@ -87,21 +88,6 @@ export function cleanMerchant(description: string): string {
 }
 
 // Collapses store numbers, reference ids, phone numbers and city/state so one rule covers a merchant.
-export function normalizeMerchant(merchant: string): string {
-  return merchant
-    .replace(/\b(ppd|web|ccd|arc)\s+id:?\s*\S+/gi, " ")
-    .replace(/\+?1?\d{3}[-\s.]?\d{3}[-\s.]?\d{4}/g, " ")
-    .replace(/\b\d{3}-\d{7,}\b/g, " ")
-    .replace(/[#*]\s*[A-Z0-9]{3,}\b/g, " ")
-    .replace(/\b[A-Z0-9]*\d[A-Z0-9]*\b/g, " ")
-    .replace(/\b(mountain vie|amzn\.com\/bill|g\.co\/helppay|www\.|\.com)\b/gi, " ")
-    .replace(/\b[A-Z]{2}\b\s*$/i, " ")
-    .replace(/[^\w&'.\- ]+/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim()
-    .toUpperCase()
-    .slice(0, 40) || merchant.trim().toUpperCase().slice(0, 40);
-}
 
 export interface AiCategory {
   category: string;

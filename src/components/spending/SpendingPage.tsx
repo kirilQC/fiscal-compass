@@ -9,6 +9,7 @@ import { Heatmap, type DayTxn } from "./Heatmap";
 import { EssentialsTable } from "./EssentialsTable";
 import { Comparisons } from "./Comparisons";
 import { TransactionLists, type Txn } from "./TransactionLists";
+import { TagReview } from "./TagReview";
 import type { SpendClass } from "@/lib/spend";
 import s from "./SpendingPage.module.css";
 
@@ -83,7 +84,8 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   const monthRow = months.find((m) => m.month === selected);
   const spentCents = txns ? spend.reduce((t, x) => t - x.amountCents, 0) : monthRow?.spentCents ?? 0;
   const essentialCents = spend.filter((t) => t.spendClass === "essential").reduce((t, x) => t - x.amountCents, 0);
-  const discretionaryCents = spentCents - essentialCents;
+  const discretionaryCents = spend.filter((t) => t.spendClass === "discretionary").reduce((t, x) => t - x.amountCents, 0);
+  const untaggedCents = spentCents - essentialCents - discretionaryCents;
   const projectedIncome = monthlyIncomeCents(d) ?? d.plan?.incomeCents ?? 0;
   const receivedIncome = monthRow?.incomeCents ?? 0;
   const incomeCents = projectedIncome || receivedIncome;
@@ -142,11 +144,13 @@ export function SpendingPage({ d }: { d: Dashboard }) {
         </div>
       </div>
 
+      <TagReview onTagged={() => setCache({})} />
+
       <div className={s.metrics}>
         <div>
           <div className={s.eyebrow}>Spent{isCurrent ? " so far" : ""}</div>
           <div className={`${s.fig} num`}>{money(spentCents)}</div>
-          <div className={s.sub}>{txns ? `${money(essentialCents)} essential · ${money(discretionaryCents)} discretionary` : incomeCents ? `${Math.round((spentCents / incomeCents) * 100)}% of income` : `${spend.length} transactions`}</div>
+          <div className={s.sub}>{txns ? `${money(essentialCents)} essential · ${money(discretionaryCents)} discretionary${untaggedCents ? ` · ${money(untaggedCents)} untagged` : ""}` : incomeCents ? `${Math.round((spentCents / incomeCents) * 100)}% of income` : `${spend.length} transactions`}</div>
         </div>
         <div>
           <div className={s.eyebrow}>Income</div>

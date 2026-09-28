@@ -417,10 +417,10 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const discIncomeCents = monthlyIncomeCents || (monthlySpending.at(-1)?.incomeCents ?? 0);
   const essentialsPlannedCents = plan?.totalCents ?? 0;
   const availableCents = Math.max(0, discIncomeCents - essentialsPlannedCents);
-  const thisMonthSplit = splitSpend(thisMonthSpend, planRows);
+  const thisMonthSplit = splitSpend(thisMonthSpend, planRows, txns);
   const discHistory = monthlySpending.map((m) => ({
     month: m.month,
-    spentCents: splitSpend(txns.filter((t) => ym(t.posted_on) === m.month), planRows).discretionaryCents,
+    spentCents: splitSpend(txns.filter((t) => ym(t.posted_on) === m.month), planRows, txns).discretionaryCents,
   }));
   const discretionary: DiscretionarySummary = {
     month: ym(monthStart),
@@ -428,7 +428,8 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     essentialsPlannedCents,
     availableCents,
     budgetCents: settings.discretionaryBudgetCents ?? defaultBudgetCents(availableCents),
-    spentTotalCents: thisMonthSplit.totalCents,
+    // Untagged charges wait for Kiril in the Spending review box; the vessel only fills with tagged spend.
+    spentTotalCents: thisMonthSplit.essentialCents + thisMonthSplit.discretionaryCents,
     spentEssentialCents: thisMonthSplit.essentialCents,
     spentDiscretionaryCents: thisMonthSplit.discretionaryCents,
     history: discHistory,

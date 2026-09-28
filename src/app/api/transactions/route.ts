@@ -1,6 +1,6 @@
 import { withUser } from "@/lib/api";
-import { getPlanRows } from "@/lib/plan";
-import { essentialPatterns, spendClass } from "@/lib/spend";
+import { spendClass } from "@/lib/spend";
+import { loadClassifier } from "@/lib/tags";
 
 export async function GET(request: Request) {
   return withUser(async ({ supabase, userId }) => {
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const [y, m] = month.split("-").map(Number);
     const start = `${month}-01`;
     const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-    const [{ data, error }, planRows] = await Promise.all([
+    const [{ data, error }, classifier] = await Promise.all([
       supabase
         .from("transactions")
         .select("id,posted_on,merchant,amount_cents,category,is_transfer,is_income,status,anomaly_note,spend_class,accounts!inner(name,kind)")
@@ -20,9 +20,8 @@ export async function GET(request: Request) {
         .lte("posted_on", end)
         .order("posted_on", { ascending: false })
         .limit(limit),
-      getPlanRows(supabase, userId),
+      loadClassifier(supabase, userId),
     ]);
-    const patterns = essentialPatterns(planRows);
     if (error) throw new Error(error.message);
     type Row = {
       id: string; posted_on: string; merchant: string; amount_cents: number; category: string; is_transfer: boolean;
@@ -42,7 +41,7 @@ export async function GET(request: Request) {
         isIncome: t.is_income,
         status: t.status,
         anomalyNote: t.anomaly_note,
-        spendClass: spendClass(t, patterns),
+        spendClass: spendClass(t, classifier),
         spendClassManual: t.spend_class !== null,
       };
     });
