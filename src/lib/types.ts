@@ -68,6 +68,8 @@ export interface PlanItem {
   amountMaxCents: number | null;
   pctOfIncome: number | null;
   merchantPattern: string | null;
+  patterns: string[]; // merchant names this expense catches
+  matchedTxnIds: string[]; // this month's charges attributed to it
   dueDay: number | null;
   isReimbursed: boolean;
   isDebtPayment: boolean;

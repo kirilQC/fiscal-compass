@@ -59,6 +59,12 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   const months = d.monthlySpending;
   const [selected, setSelected] = useState(currentMonth);
   const [cache, setCache] = useState<Record<string, Txn[]>>({});
+  const [reviewKey, setReviewKey] = useState(0);
+  // Any tag or plan change can move charges between essential and discretionary: refetch both.
+  const changed = () => {
+    setCache({});
+    setReviewKey((k) => k + 1);
+  };
   const isCurrent = selected === currentMonth;
   const prev = prevMonth(selected);
 
@@ -98,7 +104,16 @@ export function SpendingPage({ d }: { d: Dashboard }) {
     if (!d.plan) return [];
     if (isCurrent || !txns || !prevTxns) return d.plan.items;
     const rows = d.plan.items.map(toPlanRow);
-    const pool = [...prevTxns, ...txns].map((t) => ({ posted_on: t.postedOn, amount_cents: t.amountCents, merchant: t.merchant, category: t.category, is_transfer: t.isTransfer }));
+    const pool = [...prevTxns, ...txns].map((t) => ({
+      id: t.id,
+      posted_on: t.postedOn,
+      amount_cents: t.amountCents,
+      merchant: t.merchant,
+      category: t.category,
+      is_transfer: t.isTransfer,
+      is_income: t.isIncome,
+      spend_class: t.spendClassManual ? t.spendClass : null,
+    }));
     return computePlan(rows, pool, incomeCents, new Date(Date.UTC(y, m - 1, daysInMonth))).items;
   })();
 
@@ -144,7 +159,7 @@ export function SpendingPage({ d }: { d: Dashboard }) {
         </div>
       </div>
 
-      <TagReview onTagged={() => setCache({})} />
+      <TagReview onChanged={() => setCache({})} refreshKey={reviewKey} />
 
       <div className={s.metrics}>
         <div>
@@ -208,8 +223,8 @@ export function SpendingPage({ d }: { d: Dashboard }) {
 
       <section>
         <h2 className={s.h2}>Essential expenses</h2>
-        <p className={s.lede}>estimated against what actually posted in {monthName} · click an estimate to change it</p>
-        {planItems.length ? <EssentialsTable items={planItems} isCurrent={isCurrent} /> : <p className={s.hint}>No plan yet.</p>}
+        <p className={s.lede}>estimated against what actually posted in {monthName} · click an expense to edit it or see what it caught</p>
+        {planItems.length ? <EssentialsTable items={planItems} isCurrent={isCurrent} txns={spend} onChanged={changed} /> : <p className={s.hint}>No plan yet.</p>}
       </section>
 
       <hr className={s.hair} />

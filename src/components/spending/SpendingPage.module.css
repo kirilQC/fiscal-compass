@@ -89,3 +89,25 @@
 .reviewBtns { display: flex; gap: 6px; flex-shrink: 0; }
 .untagged { color: var(--ink3); border-style: dashed; }
 @media (max-width: 560px) { .reviewRow { flex-direction: column; align-items: flex-start; gap: 8px; } }
+.reviewBlock + .reviewBlock { margin-top: 22px; }
+
+.planRow { cursor: pointer; }
+.planRow:hover td { color: var(--ink); }
+.planRow[aria-expanded="true"] td { border-bottom-color: transparent; }
+.planDetailCell { padding: 4px 0 18px !important; }
+.planDetail { border: 1px solid var(--rule2); padding: 16px 18px; margin-top: 10px; }
+.planForm { display: flex; flex-wrap: wrap; gap: 12px 18px; }
+.planForm label { display: grid; gap: 4px; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); flex: 1 1 120px; }
+.planForm input, .planForm select { font: inherit; font-size: 13.5px; letter-spacing: 0; text-transform: none; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--rule2); padding: 4px 0; min-width: 0; }
+.planForm input:focus, .planForm select:focus { outline: none; border-bottom-color: var(--accent); }
+.planCatch { margin-top: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); border: 1px solid var(--rule2); border-radius: 999px; padding: 2px 4px 2px 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+.chip button { border: 0; background: transparent; color: var(--ink3); cursor: pointer; font-size: 14px; line-height: 1; padding: 0 4px; }
+.chip button:hover { color: var(--crit); }
+.inlineSel { font: inherit; font-size: 13px; color: var(--ink2); background: transparent; border: 0; border-bottom: 1px solid var(--rule2); padding: 4px 0; max-width: 100%; cursor: pointer; }
+.planMatched { list-style: none; margin: 12px 0 0; padding: 0; font-size: 13px; color: var(--ink2); }
+.planMatched li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid var(--rule); }
+.planActions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }
+.planRemove { margin-left: auto; font: inherit; font-size: 12px; color: var(--crit); background: transparent; border: 0; cursor: pointer; }
+.planRemove:hover { text-decoration: underline; }

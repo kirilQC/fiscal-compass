@@ -11,6 +11,7 @@ import s from "./CreditPage.module.css";
 
 type Txn = {
   id: string;
+  accountId: string;
   postedOn: string;
   merchant: string;
   amountCents: number;
@@ -51,7 +52,7 @@ export function CreditPage({ credit, accounts, month }: Props) {
   const acctById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const isAll = selected === "all";
   const cards = useMemo(() => (isAll ? credit : credit.filter((c) => c.accountId === selected)), [credit, isAll, selected]);
-  const cardNames = useMemo(() => new Set(cards.map((c) => c.name)), [cards]);
+  const cardIds = useMemo(() => new Set(cards.map((c) => c.accountId)), [cards]);
 
   const owed = cards.reduce((t, c) => t + c.balanceCents, 0);
   const limit = cards.reduce((t, c) => t + c.limitCents, 0);
@@ -67,7 +68,7 @@ export function CreditPage({ credit, accounts, month }: Props) {
   const avg = statements.length ? Math.round(statements.reduce((t, st) => t + st.balanceCents, 0) / statements.length) : 0;
   const utilSeries = hasLimit ? statements.map((st) => ({ date: `${st.month}-01`, valueCents: Math.round((st.balanceCents / limit) * 100) })) : [];
 
-  const rows = useMemo(() => (txns ?? []).filter((t) => cardNames.has(t.accountName)).sort((a, z) => (a.postedOn < z.postedOn ? 1 : a.postedOn > z.postedOn ? -1 : 0)), [txns, cardNames]);
+  const rows = useMemo(() => (txns ?? []).filter((t) => cardIds.has(t.accountId)).sort((a, z) => (a.postedOn < z.postedOn ? 1 : a.postedOn > z.postedOn ? -1 : 0)), [txns, cardIds]);
 
   const title = isAll ? "All cards" : prettyName(byId.get(selected)?.name ?? "");
   const monthName = new Date(`${month}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });

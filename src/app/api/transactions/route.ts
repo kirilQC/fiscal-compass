@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const [{ data, error }, classifier] = await Promise.all([
       supabase
         .from("transactions")
-        .select("id,posted_on,merchant,amount_cents,category,is_transfer,is_income,status,anomaly_note,spend_class,accounts!inner(name,kind)")
+        .select("id,account_id,posted_on,merchant,amount_cents,category,is_transfer,is_income,status,anomaly_note,spend_class,accounts!inner(name,kind)")
         .eq("user_id", userId)
         .gte("posted_on", start)
         .lte("posted_on", end)
@@ -24,13 +24,14 @@ export async function GET(request: Request) {
     ]);
     if (error) throw new Error(error.message);
     type Row = {
-      id: string; posted_on: string; merchant: string; amount_cents: number; category: string; is_transfer: boolean;
+      id: string; account_id: string; posted_on: string; merchant: string; amount_cents: number; category: string; is_transfer: boolean;
       is_income: boolean; status: string; anomaly_note: string | null; spend_class: string | null; accounts: { name: string; kind: string } | { name: string; kind: string }[];
     };
     return (data as unknown as Row[]).map((t) => {
       const acct = Array.isArray(t.accounts) ? t.accounts[0] : t.accounts;
       return {
         id: t.id,
+        accountId: t.account_id,
         postedOn: t.posted_on,
         merchant: t.merchant,
         amountCents: t.amount_cents,

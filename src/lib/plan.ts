@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PlanItem, PlanSummary } from "./types";
+import { FUEL_RE, matchesPatterns, planPatterns } from "./spend";
 
 export interface PlanRow {
   id: string;
@@ -26,11 +27,14 @@ export async function getPlanRows(supabase: SupabaseClient, userId: string): Pro
 }
 
 interface Txn {
+  id?: string;
   posted_on: string;
   amount_cents: number;
   merchant: string;
   category: string;
   is_transfer: boolean;
+  is_income?: boolean;
+  spend_class?: string | null;
 }
 
 export function expectedCents(row: PlanRow, incomeCents: number): number {
@@ -47,21 +51,33 @@ export function computePlan(rows: PlanRow[], txns: Txn[], incomeCents: number, t
   const day = today.getUTCDate();
   const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1)).toISOString().slice(0, 10);
   const graceStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), -3)).toISOString().slice(0, 10);
+  // Each charge pays at most one expense: named merchants claim first, then category-only expenses (groceries, gas).
+  // A charge Kiril tagged discretionary by hand is never counted as an essential payment.
+  const claimed = new Map<Txn, string>();
+  const eligible = (t: Txn, from: string) => t.posted_on >= from && t.amount_cents < 0 && !t.is_income && t.spend_class !== "discretionary" && !claimed.has(t);
+  const fromFor = (row: PlanRow) => (row.due_day != null && row.due_day <= 3 ? graceStart : monthStart);
+  for (const row of rows) {
+    const pats = planPatterns(row.merchant_pattern);
+    if (!pats.length) continue;
+    for (const t of txns) if (eligible(t, fromFor(row)) && matchesPatterns(t.merchant, pats)) claimed.set(t, row.id);
+  }
+  for (const row of rows) {
+    if (planPatterns(row.merchant_pattern).length) continue;
+    for (const t of txns) {
+      if (!eligible(t, fromFor(row)) || t.is_transfer || t.category !== row.category) continue;
+      if (row.category === "Transport" && !FUEL_RE.test(t.merchant)) continue;
+      claimed.set(t, row.id);
+    }
+  }
+
   const items: PlanItem[] = rows.map((row) => {
     const expected = expectedCents(row, incomeCents);
-    const from = row.due_day != null && row.due_day <= 3 ? graceStart : monthStart;
-    const monthTxns = txns.filter((t) => t.posted_on >= from);
-    let matched: Txn[] = [];
-    if (row.merchant_pattern) {
-      const pat = row.merchant_pattern.toLowerCase();
-      matched = monthTxns.filter((t) => t.amount_cents < 0 && t.merchant.toLowerCase().includes(pat));
-    } else {
-      matched = monthTxns.filter((t) => t.amount_cents < 0 && !t.is_transfer && t.category === row.category);
-    }
+    const patterns = planPatterns(row.merchant_pattern);
+    const matched = txns.filter((t) => claimed.get(t) === row.id);
     const paidCents = matched.reduce((s, t) => s - t.amount_cents, 0);
     const paidOn = matched.length ? matched.map((t) => t.posted_on).sort().at(-1)! : null;
     let status: PlanItem["status"];
-    if (!row.merchant_pattern) status = "varies";
+    if (!patterns.length) status = "varies";
     else if (paidCents > 0) status = "paid";
     else if (row.due_day != null && day > row.due_day + 2) status = "overdue";
     else status = "due";
@@ -75,6 +91,8 @@ export function computePlan(rows: PlanRow[], txns: Txn[], incomeCents: number, t
       amountMaxCents: row.amount_max_cents,
       pctOfIncome: row.pct_of_income == null ? null : Number(row.pct_of_income),
       merchantPattern: row.merchant_pattern,
+      patterns,
+      matchedTxnIds: matched.map((t) => t.id).filter((id): id is string => !!id),
       dueDay: row.due_day,
       isReimbursed: row.is_reimbursed,
       isDebtPayment: isDebtPayment(row),
