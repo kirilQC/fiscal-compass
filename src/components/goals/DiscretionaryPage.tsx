@@ -74,7 +74,6 @@ export function DiscretionaryPage({ d }: { d: Dashboard }) {
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const dayOfMonth = Math.min(daysInMonth, Number(d.asOf.slice(8, 10)) || daysInMonth);
   const daysLeft = Math.max(0, daysInMonth - dayOfMonth);
-  const monthName = new Date(`${month}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
 
   const kept = available - budget;
   const over = discSpent - budget;
@@ -285,9 +284,6 @@ export function DiscretionaryPage({ d }: { d: Dashboard }) {
     <main className={`wrap ${s.page}`}>
       <header className={s.head}>
         <h1 className={s.h1}>Discretionary</h1>
-        <p className={s.sub}>
-          {fmt(income)} comes in. {fmt(essentialsPlanned)} is spoken for. What&apos;s left is yours to decide.
-        </p>
       </header>
 
       <div className={s.wrap}>
@@ -316,9 +312,6 @@ export function DiscretionaryPage({ d }: { d: Dashboard }) {
               if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); setAndCommit(budget - STEP); }
             }}
           />
-          <p className={s.hint}>
-            Drag the dashed line up or down on the glass — or use the slider — to set how much of the {fmt(available)} is pocket money.
-          </p>
         </div>
 
         <div>
@@ -397,7 +390,6 @@ export function DiscretionaryPage({ d }: { d: Dashboard }) {
             </div>
           </div>
 
-          <div className={s.later}>Longer-range goals come later — this page is about {monthName}.</div>
         </div>
       </div>
     </main>

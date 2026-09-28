@@ -145,7 +145,6 @@ export function EssentialsSection({ items, txns, lookup, month, today, isCurrent
       <div className={s.head}>
         <div>
           <h2 className={s.title}>Essential expenses</h2>
-          <p className={s.sub}>{monthName}{isCurrent ? ` · day ${dayOfMonth} of ${daysInMonth}` : ""} · {paidCount} of {tracked.length} bills paid · click an expense to edit it or see what it caught</p>
         </div>
         <div className={s.kpis}>
           <div><span className={s.lbl}>Planned</span><b className="num">{money(planned)}</b></div>
@@ -238,7 +237,7 @@ export function EssentialsSection({ items, txns, lookup, month, today, isCurrent
       <AddExpense onChanged={onChanged} />
 
       <div className={s.block}>
-        <span className={s.lbl}>Bill calendar · each bill on the day it posted · outlined = still due</span>
+        <span className={s.lbl}>Bill calendar</span>
         <div className={s.stripWrap}>
           <div className={s.strip} style={{ gridTemplateColumns: `repeat(${daysInMonth + (hasPrev ? 1 : 0)}, minmax(26px, 1fr))` }}>
             {Array.from({ length: daysInMonth + 1 }, (_, d) => d).filter((d) => d > 0 || hasPrev).map((d) => {
@@ -285,7 +284,7 @@ export function EssentialsSection({ items, txns, lookup, month, today, isCurrent
 
       {slices.length ? (
         <div className={s.block}>
-          <span className={s.lbl}>The month in one bar · each slice is one expense · striped = not charged yet</span>
+          <span className={s.lbl}>The month in one bar</span>
           <div className={s.mbar}>
             {slices.map((x) => (
               <span

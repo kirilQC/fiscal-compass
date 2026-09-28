@@ -11,6 +11,7 @@ import { EssentialsSection } from "./EssentialsSection";
 import { Comparisons } from "./Comparisons";
 import { TransactionLists, type Txn } from "./TransactionLists";
 import { TagReview } from "./TagReview";
+import { SpendSplitPie } from "./SpendSplitPie";
 import type { SpendClass } from "@/lib/spend";
 import s from "./SpendingPage.module.css";
 
@@ -98,8 +99,9 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   const incomeCents = projectedIncome || receivedIncome;
   const [y, m] = selected.split("-").map(Number);
   const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const dayOfMonth = isCurrent ? Number(today.slice(8, 10)) : daysInMonth;
-  const projected = isCurrent && dayOfMonth ? Math.round((spentCents / dayOfMonth) * daysInMonth) : null;
+  // Budget = the essentials plan plus the discretionary cap set on the Goals page.
+  const budgetCents = (d.discretionary?.essentialsPlannedCents ?? 0) + (d.discretionary?.budgetCents ?? 0);
+  const budgetPct = budgetCents ? Math.round((spentCents / budgetCents) * 100) : null;
 
   const planItems: PlanItem[] = (() => {
     if (!d.plan) return [];
@@ -142,14 +144,12 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   }));
 
   const monthName = longMonth(selected);
-  const range = `${monthName.slice(0, 3)} 1 – ${monthName.slice(0, 3)} ${daysInMonth}`;
 
   return (
     <main className={`wrap ${s.page}`}>
       <div className={s.head}>
         <div>
           <h1 className={s.title}>Spending</h1>
-          <div className={s.sub} style={{ fontSize: 13.5 }}>{range}{isCurrent ? ` · day ${dayOfMonth} of ${daysInMonth}` : ""}</div>
         </div>
         <div className={s.months} role="tablist" aria-label="Month">
           {months.map((mo) => (
@@ -166,39 +166,42 @@ export function SpendingPage({ d }: { d: Dashboard }) {
         <div>
           <div className={s.eyebrow}>Spent{isCurrent ? " so far" : ""}</div>
           <div className={`${s.fig} num`}>{money(spentCents)}</div>
-          <div className={s.sub}>{txns ? `${money(essentialCents)} essential · ${money(discretionaryCents)} discretionary${untaggedCents ? ` · ${money(untaggedCents)} untagged` : ""}` : incomeCents ? `${Math.round((spentCents / incomeCents) * 100)}% of income` : `${spend.length} transactions`}</div>
         </div>
         <div>
           <div className={s.eyebrow}>Income</div>
           <div className={`${s.fig} num`}>{incomeCents ? money(incomeCents) : "—"}</div>
-          <div className={s.sub}>{receivedIncome ? `${money(receivedIncome)} received${isCurrent ? " so far" : ""}` : "expected this month"}</div>
         </div>
         <div>
           <div className={s.eyebrow}>Left</div>
           <div className={`${s.fig} num ${incomeCents && incomeCents - spentCents < 0 ? "crit" : ""}`}>{incomeCents ? money(incomeCents - spentCents) : "—"}</div>
-          <div className={s.sub}>income minus spent</div>
         </div>
         <div>
           <div className={s.eyebrow}>Still due</div>
           <div className={`${s.fig} num`}>{money(dueCents)}</div>
-          <div className={s.sub}>{due.length} bill{due.length === 1 ? "" : "s"} not yet paid</div>
         </div>
         <div>
-          <div className={s.eyebrow}>{isCurrent ? "Projected" : "Full month"}</div>
-          <div className={`${s.fig} num`}>{projected !== null ? money(projected) : money(spentCents)}</div>
-          <div className={s.sub}>{projected !== null ? `at today's pace · ${money(Math.abs(projected + dueCents))} incl. due` : "closed"}</div>
+          <div className={s.eyebrow}>Budget used</div>
+          <div className={`${s.fig} num ${budgetPct !== null && budgetPct > 100 ? "crit" : ""}`}>{budgetPct !== null ? `${budgetPct}%` : "—"}</div>
+          {budgetPct !== null ? <div className={s.budgetBar} title={`${money(spentCents)} of a ${money(budgetCents)} budget`}><i style={{ width: `${Math.min(100, budgetPct)}%` }} className={budgetPct > 100 ? s.budgetOver : undefined} /></div> : null}
         </div>
       </div>
 
       <section className={s.split}>
         <div>
           <h2 className={s.h2}>{monthName}, day by day</h2>
-          <p className={s.lede}>discretionary spend only · hover a day for what was spent</p>
           <Heatmap month={selected} today={today} byDay={byDay} plan={planItems} />
         </div>
         <div>
+          <h2 className={s.h2}>Essential vs discretionary</h2>
+          <div className={s.splitPie}>{txns ? (
+            <SpendSplitPie essentialCents={essentialCents} discretionaryCents={discretionaryCents} untaggedCents={untaggedCents} />
+          ) : isCurrent && d.discretionary ? (
+            <SpendSplitPie essentialCents={d.discretionary.spentEssentialCents} discretionaryCents={d.discretionary.spentDiscretionaryCents} untaggedCents={0} />
+          ) : (
+            <p className={s.hint}>Loading…</p>
+          )}</div>
           <h2 className={s.h2}>Still due</h2>
-          <p className={s.lede}>{due.length ? `${due.length} bills · ${money(dueCents)} left to pay this month` : "everything planned has been paid"}</p>
+          {due.length ? null : <p className={s.lede}>Everything planned has been paid.</p>}
           {due.length ? (
             <>
               <ul className={s.due}>

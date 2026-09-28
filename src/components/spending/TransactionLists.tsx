@@ -70,13 +70,11 @@ export function TransactionLists({ spend, all, monthName, loading, onRetag }: { 
     <div className={s.two}>
       <div>
         <h2 className={s.h2}>Biggest in {monthName}</h2>
-        <p className={s.lede}>top 20 by amount</p>
         <Table rows={biggest} onRetag={onRetag} />
       </div>
       <div>
         <h2 className={s.h2}>All transactions</h2>
         <p className={s.lede}>
-          newest first · {list.length} in {monthName}
           <button type="button" className={s.toggle} onClick={() => setWithTransfers(!withTransfers)}>{withTransfers ? "hide transfers & income" : "show transfers & income"}</button>
         </p>
         <Table rows={list.slice(0, shown)} onRetag={onRetag} />
