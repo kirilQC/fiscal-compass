@@ -42,6 +42,8 @@ const BRANDS: [RegExp, string][] = [
   [/planet fitness|pf n /i, "planetfitness.com"], [/compassion/i, "compassion.com"], [/waychurch|way church/i, "waychurch.com"], [/progress residenti|rentprogress/i, "progressresidential.com"],
   [/hilton/i, "hilton.com"], [/wgu/i, "wgu.edu"], [/gusto/i, "gusto.com"], [/fidelity|fid bkg/i, "fidelity.com"], [/irs treas/i, "irs.gov"], [/dfas/i, "dfas.mil"],
   [/sunbit/i, "sunbit.com"],
+  // Charges the bank itself posts: interest, fees, card and loan payments.
+  [/interest charge|interest payment|payment to chase|payment thank you|to auto loan|foreign transaction fee|^statement$|^payment$/i, "chase.com"],
 ];
 
 export const brandDomain = (merchant: string): string | null => BRANDS.find(([re]) => re.test(merchant))?.[1] ?? null;
