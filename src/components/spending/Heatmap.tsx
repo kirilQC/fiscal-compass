@@ -65,7 +65,7 @@ export function Heatmap({ month, today, byDay, plan }: { month: string; today: s
         })}
       </div>
       <div className={s.legend}>
-        <span>Tint = spend that day</span>
+        <span>Tint = discretionary spend that day</span>
         <span><i style={{ background: "var(--good)" }} />bill paid</span>
         <span><i style={{ background: "var(--accent)" }} />bill due</span>
         <span><i style={{ background: "var(--crit)" }} />overdue</span>

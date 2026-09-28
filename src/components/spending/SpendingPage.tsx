@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Dashboard, PlanItem, SeriesPoint } from "@/lib/types";
 import { computePlan, type PlanRow } from "@/lib/plan";
 import { money, prettyMerchant } from "@/lib/format";
+import { discretionaryPerTxn } from "@/lib/discretionary";
 import { monthlyIncomeCents } from "@/components/overview/IncomePie";
 import { Heatmap, type DayTxn } from "./Heatmap";
 import { EssentialsTable } from "./EssentialsTable";
@@ -99,15 +100,23 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   const tracked = planItems.filter((i) => !i.isReimbursed && i.status !== "varies");
   const paidCount = tracked.filter((i) => i.status === "paid").length;
 
-  const byDay = useMemo(() => {
+  // The heatmap tracks discretionary spend only: essentials the plan covers never tint a day.
+  const planRows = (d.plan?.items ?? []).map(toPlanRow);
+  const byDay = (() => {
+    const disc = discretionaryPerTxn(
+      spend.map((t) => ({ posted_on: t.postedOn, amount_cents: t.amountCents, merchant: t.merchant, category: t.category, is_transfer: t.isTransfer, is_income: t.isIncome })),
+      planRows,
+      incomeCents,
+    );
     const map = new Map<string, DayTxn[]>();
-    for (const t of spend) {
+    spend.forEach((t, i) => {
+      if (!disc[i]) return;
       const list = map.get(t.postedOn) ?? [];
-      list.push({ id: t.id, postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents });
+      list.push({ id: t.id, postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: -disc[i] });
       map.set(t.postedOn, list);
-    }
+    });
     return map;
-  }, [spend]);
+  })();
 
   const upTo = isCurrent ? today : `${selected}-${String(daysInMonth).padStart(2, "0")}`;
   const cumulative = cumulativeSeries(txns ?? [], selected, upTo);
@@ -168,7 +177,7 @@ export function SpendingPage({ d }: { d: Dashboard }) {
       <section className={s.split}>
         <div>
           <h2 className={s.h2}>{monthName}, day by day</h2>
-          <p className={s.lede}>hover a day for what was spent</p>
+          <p className={s.lede}>discretionary spend only · hover a day for what was spent</p>
           <Heatmap month={selected} today={today} byDay={byDay} plan={planItems} />
         </div>
         <div>

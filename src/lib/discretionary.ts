@@ -2,6 +2,7 @@ import type { PlanRow } from "./plan";
 import { expectedCents } from "./plan";
 
 export interface SpendTxn {
+  posted_on?: string;
   amount_cents: number;
   merchant: string;
   category: string;
@@ -41,38 +42,49 @@ function plannedTransportCents(rows: PlanRow[], incomeCents: number) {
 }
 
 /**
- * Splits a month's spending into what the plan already accounts for and what is pocket money.
+ * The discretionary part of each transaction, in cents (0 when it is essential or not spend at all).
+ * Transport fills the planned fuel figure in date order; whatever lands past it is discretionary.
  * Reimbursed spend, transfers and income never count toward either side.
  */
-export function splitSpend(txns: SpendTxn[], planRows: PlanRow[], incomeCents: number): SpendSplit {
+export function discretionaryPerTxn(txns: SpendTxn[], planRows: PlanRow[], incomeCents: number): number[] {
   const { essential: essentialPatterns, excluded } = patterns(planRows);
-  let essentialCents = 0;
-  let discretionaryCents = 0;
-  let transportCents = 0;
+  const out = txns.map(() => 0);
+  const transport: number[] = [];
 
-  for (const t of txns) {
-    if (!countsAsSpend(t)) continue;
-    const amount = -t.amount_cents;
+  txns.forEach((t, i) => {
+    if (!countsAsSpend(t)) return;
     const merchant = t.merchant.toLowerCase();
-    if (excluded.some((p) => merchant.includes(p))) continue;
+    if (excluded.some((p) => merchant.includes(p))) return;
+    if (essentialPatterns.some((p) => merchant.includes(p))) return;
+    if (t.category === TRANSPORT) transport.push(i);
+    else if (!ESSENTIAL_CATEGORIES.has(t.category)) out[i] = -t.amount_cents;
+  });
 
-    if (essentialPatterns.some((p) => merchant.includes(p))) {
-      essentialCents += amount;
-    } else if (t.category === TRANSPORT) {
-      transportCents += amount;
-    } else if (ESSENTIAL_CATEGORIES.has(t.category)) {
-      essentialCents += amount;
-    } else {
-      discretionaryCents += amount;
-    }
+  let budgetLeft = plannedTransportCents(planRows, incomeCents);
+  transport.sort((a, b) => (txns[a].posted_on ?? "").localeCompare(txns[b].posted_on ?? ""));
+  for (const i of transport) {
+    const amount = -txns[i].amount_cents;
+    const covered = Math.min(amount, budgetLeft);
+    budgetLeft -= covered;
+    out[i] = amount - covered;
   }
+  return out;
+}
 
-  const transportBudget = plannedTransportCents(planRows, incomeCents);
-  const transportEssential = Math.min(transportCents, transportBudget);
-  essentialCents += transportEssential;
-  discretionaryCents += transportCents - transportEssential;
-
-  return { totalCents: essentialCents + discretionaryCents, essentialCents, discretionaryCents };
+/** Splits a month's spending into what the plan already accounts for and what is pocket money. */
+export function splitSpend(txns: SpendTxn[], planRows: PlanRow[], incomeCents: number): SpendSplit {
+  const disc = discretionaryPerTxn(txns, planRows, incomeCents);
+  const { excluded } = patterns(planRows);
+  let totalCents = 0;
+  let discretionaryCents = 0;
+  txns.forEach((t, i) => {
+    if (!countsAsSpend(t)) return;
+    const merchant = t.merchant.toLowerCase();
+    if (excluded.some((p) => merchant.includes(p))) return;
+    totalCents -= t.amount_cents;
+    discretionaryCents += disc[i];
+  });
+  return { totalCents, essentialCents: totalCents - discretionaryCents, discretionaryCents };
 }
 
 // Default cap before Kiril sets one: a third of what is left after essentials, to the nearest $50.
