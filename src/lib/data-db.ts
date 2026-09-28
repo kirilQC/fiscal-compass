@@ -16,6 +16,7 @@ import type {
 } from "./types";
 import { getUserSettings } from "./settings";
 import { splitSpend, defaultBudgetCents } from "./discretionary";
+import { isSpend } from "./spend";
 import { computePlan, getPlanRows, planCategoryLimits } from "./plan";
 
 interface AccountRow {
@@ -32,7 +33,7 @@ interface AccountRow {
 interface BalanceRow { account_id: string; as_of: string; balance_cents: number }
 interface TxnRow {
   id: string; account_id: string; posted_on: string; amount_cents: number; merchant: string; category: string;
-  is_transfer: boolean; is_income: boolean; anomaly_note: string | null; status: string;
+  is_transfer: boolean; is_income: boolean; anomaly_note: string | null; status: string; spend_class: string | null;
 }
 interface HoldingRow { id: string; account_id: string; symbol: string; name: string | null; asset_class: string | null; target_pct: number | null }
 interface HoldingDailyRow { holding_id: string; as_of: string; value_cents: number }
@@ -57,7 +58,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const [accountsQ, balancesQ, txnsQ, holdingsQ, holdingsDailyQ, goalsQ, budgetQ, paychecksQ, notesQ, settings, planRows] = await Promise.all([
     supabase.from("accounts").select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", since5y).order("as_of"),
-    supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note,status").eq("user_id", userId).gte("posted_on", since12m).order("posted_on", { ascending: false }).limit(5000),
+    supabase.from("transactions").select("id,account_id,posted_on,amount_cents,merchant,category,is_transfer,is_income,anomaly_note,status,spend_class").eq("user_id", userId).gte("posted_on", since12m).order("posted_on", { ascending: false }).limit(5000),
     supabase.from("holdings").select("id,account_id,symbol,name,asset_class,target_pct").eq("user_id", userId),
     supabase.from("holdings_daily").select("holding_id,as_of,value_cents").eq("user_id", userId).gte("as_of", since12m).order("as_of"),
     supabase.from("goals").select("id,name,target_cents,saved_cents,target_date,monthly_plan_cents,sort").eq("user_id", userId).order("sort"),
@@ -291,7 +292,6 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const investmentChangeMtdPct = invPrev ? ((investmentTotalCents - invPrev) / invPrev) * 100 : null;
 
   // Spending & budget
-  const isSpend = (t: TxnRow) => t.amount_cents < 0 && !t.is_transfer && !t.is_income;
   const dayOfMonth = now.getUTCDate();
   const daysInMonth = monthEnd(now.getUTCFullYear(), now.getUTCMonth()).getUTCDate();
   const thisMonthSpend = txns.filter((t) => isSpend(t) && t.posted_on >= monthStart);
@@ -402,7 +402,7 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
     monthlyFlow.push({ month: m, incomeCents: pay || incomeTx, spendCents: spend });
     const byCat = new Map<string, number>();
     for (const t of txns) {
-      if (!isSpend(t) || ym(t.posted_on) !== m || t.category === "Reimbursed") continue;
+      if (!isSpend(t) || ym(t.posted_on) !== m) continue;
       byCat.set(t.category, (byCat.get(t.category) ?? 0) - t.amount_cents);
     }
     monthlySpending.push({
@@ -417,14 +417,10 @@ export async function buildDashboardFromDb(supabase: SupabaseClient, userId: str
   const discIncomeCents = monthlyIncomeCents || (monthlySpending.at(-1)?.incomeCents ?? 0);
   const essentialsPlannedCents = plan?.totalCents ?? 0;
   const availableCents = Math.max(0, discIncomeCents - essentialsPlannedCents);
-  const thisMonthSplit = splitSpend(thisMonthSpend, planRows, discIncomeCents);
+  const thisMonthSplit = splitSpend(thisMonthSpend, planRows);
   const discHistory = monthlySpending.map((m) => ({
     month: m.month,
-    spentCents: splitSpend(
-      txns.filter((t) => ym(t.posted_on) === m.month),
-      planRows,
-      monthlyIncomeCents || m.incomeCents,
-    ).discretionaryCents,
+    spentCents: splitSpend(txns.filter((t) => ym(t.posted_on) === m.month), planRows).discretionaryCents,
   }));
   const discretionary: DiscretionarySummary = {
     month: ym(monthStart),

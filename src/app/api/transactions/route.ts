@@ -1,4 +1,6 @@
 import { withUser } from "@/lib/api";
+import { getPlanRows } from "@/lib/plan";
+import { essentialPatterns, spendClass } from "@/lib/spend";
 
 export async function GET(request: Request) {
   return withUser(async ({ supabase, userId }) => {
@@ -9,18 +11,22 @@ export async function GET(request: Request) {
     const [y, m] = month.split("-").map(Number);
     const start = `${month}-01`;
     const end = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("id,posted_on,merchant,amount_cents,category,is_transfer,is_income,status,anomaly_note,accounts!inner(name,kind)")
-      .eq("user_id", userId)
-      .gte("posted_on", start)
-      .lte("posted_on", end)
-      .order("posted_on", { ascending: false })
-      .limit(limit);
+    const [{ data, error }, planRows] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("id,posted_on,merchant,amount_cents,category,is_transfer,is_income,status,anomaly_note,spend_class,accounts!inner(name,kind)")
+        .eq("user_id", userId)
+        .gte("posted_on", start)
+        .lte("posted_on", end)
+        .order("posted_on", { ascending: false })
+        .limit(limit),
+      getPlanRows(supabase, userId),
+    ]);
+    const patterns = essentialPatterns(planRows);
     if (error) throw new Error(error.message);
     type Row = {
       id: string; posted_on: string; merchant: string; amount_cents: number; category: string; is_transfer: boolean;
-      is_income: boolean; status: string; anomaly_note: string | null; accounts: { name: string; kind: string } | { name: string; kind: string }[];
+      is_income: boolean; status: string; anomaly_note: string | null; spend_class: string | null; accounts: { name: string; kind: string } | { name: string; kind: string }[];
     };
     return (data as unknown as Row[]).map((t) => {
       const acct = Array.isArray(t.accounts) ? t.accounts[0] : t.accounts;
@@ -36,6 +42,8 @@ export async function GET(request: Request) {
         isIncome: t.is_income,
         status: t.status,
         anomalyNote: t.anomaly_note,
+        spendClass: spendClass(t, patterns),
+        spendClassManual: t.spend_class !== null,
       };
     });
   });

@@ -6,6 +6,7 @@ const Body = z.object({
   category: z.string().min(1).optional(),
   isTransfer: z.boolean().optional(),
   isIncome: z.boolean().optional(),
+  spendClass: z.enum(["essential", "discretionary"]).nullable().optional(),
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -17,6 +18,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       ...(b.category !== undefined && { category: b.category, category_source: "manual" }),
       ...(b.isTransfer !== undefined && { is_transfer: b.isTransfer }),
       ...(b.isIncome !== undefined && { is_income: b.isIncome }),
+      ...(b.spendClass !== undefined && { spend_class: b.spendClass }),
     };
     const { error } = await supabase.from("transactions").update(row).eq("id", id).eq("user_id", userId);
     if (error) throw new Error(error.message);

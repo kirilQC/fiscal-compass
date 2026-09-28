@@ -1,28 +1,8 @@
 import OpenAI from "openai";
 
-export const CATEGORIES = [
-  "Groceries",
-  "Dining",
-  "Transport",
-  "Shopping",
-  "Subscriptions",
-  "Utilities",
-  "Housing",
-  "Insurance",
-  "Health",
-  "Fitness",
-  "Entertainment",
-  "Giving",
-  "Business",
-  "Travel",
-  "Personal Care",
-  "Fees & Interest",
-  "Income",
-  "Transfer",
-  "Reimbursed",
-  "Other",
-] as const;
-export type Category = (typeof CATEGORIES)[number];
+import { CATEGORIES, INTERNAL_MOVE_RE, type Category } from "./spend";
+
+export { CATEGORIES, type Category };
 
 export interface Rule {
   merchant_pattern: string;
@@ -46,13 +26,18 @@ export interface CategorizeContext {
 type Hit = { category: Category; isTransfer?: boolean; isIncome?: boolean };
 
 const TRANSFER: Hit = { category: "Transfer", isTransfer: true };
-// Paid by Kiril and paid back later; never counts as spending.
-const REIMBURSED: Hit = { category: "Reimbursed", isTransfer: true };
+// Paid by Kiril and paid back later: still spending (essential), shown under its own category.
+const REIMBURSED: Hit = { category: "Reimbursed" };
 
-// Order matters: transfers and income first so "payment" merchants never land in a spend bucket.
+// Order matters: internal moves and income first so "payment" merchants never land in a spend bucket.
 const KEYWORDS: Array<[RegExp, Hit]> = [
   [/\bfpl\b|fpl direct|breezeline/i, REIMBURSED],
-  [/payment to chase card|payment thank you|autopay|online payment.*to auto loan|to auto loan|loan payment|zelle|venmo|cash app|paypal transfer|electronic funds transfer|\btransfer\b|redemption from core|into core account|reinvestment/i, TRANSFER],
+  [INTERNAL_MOVE_RE, TRANSFER],
+  [/to auto loan|loan payment|sunbit/i, { category: "Loan Payment" }],
+  [/kings crossing|pintes investment/i, { category: "Housing" }],
+  [/barrington barber/i, { category: "Personal Care" }],
+  [/zelle|venmo|cash app|paypal/i, { category: "Payments to People" }],
+  [/withdrawal|\batm\b|funds transfer paid \(cash\)/i, { category: "Cash" }],
   [/payroll|gusto|direct dep|dir dep|salary|paycheck|interest payment/i, { category: "Income", isIncome: true }],
   [/interest charge|late fee|annual fee|foreign transaction|overdraft|service fee|finance charge/i, { category: "Fees & Interest" }],
   [/kroger|whole foods|publix|aldi|trader joe|supermercado|carniceria|safeway|costco|wegmans|h-e-b|food lion|sprouts|grocery|market\b/i, { category: "Groceries" }],
@@ -65,7 +50,9 @@ const KEYWORDS: Array<[RegExp, Hit]> = [
   [/progressive|geico|state farm|allstate|\bins\b|insurance|liberty mutual|usaa/i, { category: "Insurance" }],
   [/trufit|planet fitness|\bgym\b|club fees|crossfit|ymca|orangetheory|anytime fitness/i, { category: "Fitness" }],
   [/waychurch|church|compassion internation|tithe|donat|charity|ministr|red cross|gofundme/i, { category: "Giving" }],
-  [/vercel|cursor|google \*cloud|google\*google services|google \*google|heyreach|openai|anthropic|supabase|github|notion|slack|zoom|clay\b|lemlist|fh\* turn their heads|linkedin|apollo|hubspot|godaddy|namecheap|aws|amazon web services|figma|canva|calendly|loom|stripe/i, { category: "Business" }],
+  [/vercel|cursor|google \*cloud|google\*google services|google \*google|heyreach|openai|openrouter|anthropic|supabase|github|notion|slack|zoom|clay\b|lemlist|linkedin|apollo|hubspot|godaddy|namecheap|aws|amazon web services|figma|canva|calendly|loom|ring\.com/i, { category: "Subscriptions" }],
+  [/turn their heads|dance studio|dance class/i, { category: "Entertainment" }],
+  [/wgu|udemy|coursera|tuition/i, { category: "Education" }],
   [/pharmacy|cvs|walgreens|dental|medical|clinic|hospital|doctor|urgent care|optometr|vision|labcorp|quest diag/i, { category: "Health" }],
   [/salon|barber|spa\b|nails|haircut|massage|great clips|supercuts|sephora|ulta/i, { category: "Personal Care" }],
   [/cinema|amc\b|regal|theater|theatre|steam|playstation|xbox|nintendo|ticketmaster|eventbrite|bowling|topgolf|museum|zoo\b|concert/i, { category: "Entertainment" }],
@@ -129,7 +116,7 @@ export async function categorizeMerchantsWithAI(merchants: string[]): Promise<Re
     const ai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const res = await ai.responses.create({
       model: process.env.OPENAI_CATEGORY_MODEL ?? "gpt-5-mini",
-      instructions: `You classify bank-statement merchant strings for a personal budget in the US. Reply with ONLY a JSON object mapping each input string exactly as given to {"category": one of ${JSON.stringify(CATEGORIES)}, "isTransfer": boolean, "isIncome": boolean}. "Transfer" = movement between the person's own accounts, card payments, loan payments. "Business" = SaaS, developer tools, marketing/sales software, cloud hosting. "Income" only for payroll/salary/deposits from employers. Use "Other" only when truly unknowable.`,
+      instructions: `You classify bank-statement merchant strings for a personal budget in the US. Reply with ONLY a JSON object mapping each input string exactly as given to {"category": one of ${JSON.stringify(CATEGORIES)}, "isTransfer": boolean, "isIncome": boolean}. "Transfer" (isTransfer true) ONLY for money moving between the person's own accounts: credit card payments, brokerage sweeps, transfers to their own savings. Payments to other people (Zelle, Venmo, Cash App) are "Payments to People", loan payments are "Loan Payment", ATM or cash withdrawals are "Cash"; none of these are transfers. Software, SaaS, AI tools and cloud hosting are "Subscriptions" (there is no business category; this is a personal budget). "Income" only for payroll/salary/deposits from employers. Use "Other" only when truly unknowable.`,
       input: JSON.stringify(list),
     });
     const text = res.output_text?.trim() ?? "";

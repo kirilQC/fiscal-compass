@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { Dashboard, PlanItem, SeriesPoint } from "@/lib/types";
 import { computePlan, type PlanRow } from "@/lib/plan";
 import { money, prettyMerchant } from "@/lib/format";
-import { discretionaryPerTxn } from "@/lib/discretionary";
 import { monthlyIncomeCents } from "@/components/overview/IncomePie";
 import { Heatmap, type DayTxn } from "./Heatmap";
 import { EssentialsTable } from "./EssentialsTable";
 import { Comparisons } from "./Comparisons";
 import { TransactionLists, type Txn } from "./TransactionLists";
+import type { SpendClass } from "@/lib/spend";
 import s from "./SpendingPage.module.css";
 
 const longMonth = (ym: string) => new Date(`${ym}-01T00:00:00Z`).toLocaleString("en-US", { month: "long", timeZone: "UTC" });
@@ -17,7 +17,7 @@ const prevMonth = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
   return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7);
 };
-const isSpend = (t: Txn) => t.amountCents < 0 && !t.isTransfer && !t.isIncome && t.category !== "Reimbursed";
+const isSpend = (t: Txn) => t.spendClass !== null;
 
 function toPlanRow(i: PlanItem): PlanRow {
   return {
@@ -71,6 +71,9 @@ export function SpendingPage({ d }: { d: Dashboard }) {
     }
   }, [selected, prev, cache]);
 
+  const retag = (id: string, next: SpendClass) =>
+    setCache((c) => ({ ...c, [selected]: (c[selected] ?? []).map((t) => (t.id === id ? { ...t, spendClass: next, spendClassManual: true } : t)) }));
+
   const txns = cache[selected];
   const prevTxns = cache[prev];
   const loading = !txns || !prevTxns;
@@ -79,6 +82,8 @@ export function SpendingPage({ d }: { d: Dashboard }) {
 
   const monthRow = months.find((m) => m.month === selected);
   const spentCents = txns ? spend.reduce((t, x) => t - x.amountCents, 0) : monthRow?.spentCents ?? 0;
+  const essentialCents = spend.filter((t) => t.spendClass === "essential").reduce((t, x) => t - x.amountCents, 0);
+  const discretionaryCents = spentCents - essentialCents;
   const projectedIncome = monthlyIncomeCents(d) ?? d.plan?.incomeCents ?? 0;
   const receivedIncome = monthRow?.incomeCents ?? 0;
   const incomeCents = projectedIncome || receivedIncome;
@@ -100,23 +105,14 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   const tracked = planItems.filter((i) => !i.isReimbursed && i.status !== "varies");
   const paidCount = tracked.filter((i) => i.status === "paid").length;
 
-  // The heatmap tracks discretionary spend only: essentials the plan covers never tint a day.
-  const planRows = (d.plan?.items ?? []).map(toPlanRow);
-  const byDay = (() => {
-    const disc = discretionaryPerTxn(
-      spend.map((t) => ({ posted_on: t.postedOn, amount_cents: t.amountCents, merchant: t.merchant, category: t.category, is_transfer: t.isTransfer, is_income: t.isIncome })),
-      planRows,
-      incomeCents,
-    );
-    const map = new Map<string, DayTxn[]>();
-    spend.forEach((t, i) => {
-      if (!disc[i]) return;
-      const list = map.get(t.postedOn) ?? [];
-      list.push({ id: t.id, postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: -disc[i] });
-      map.set(t.postedOn, list);
-    });
-    return map;
-  })();
+  // The heatmap tracks discretionary spend only: essential transactions never tint a day.
+  const byDay = new Map<string, DayTxn[]>();
+  for (const t of spend) {
+    if (t.spendClass !== "discretionary") continue;
+    const list = byDay.get(t.postedOn) ?? [];
+    list.push({ id: t.id, postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents });
+    byDay.set(t.postedOn, list);
+  }
 
   const upTo = isCurrent ? today : `${selected}-${String(daysInMonth).padStart(2, "0")}`;
   const cumulative = cumulativeSeries(txns ?? [], selected, upTo);
@@ -150,7 +146,7 @@ export function SpendingPage({ d }: { d: Dashboard }) {
         <div>
           <div className={s.eyebrow}>Spent{isCurrent ? " so far" : ""}</div>
           <div className={`${s.fig} num`}>{money(spentCents)}</div>
-          <div className={s.sub}>{incomeCents ? `${Math.round((spentCents / incomeCents) * 100)}% of income` : `${spend.length} transactions`}</div>
+          <div className={s.sub}>{txns ? `${money(essentialCents)} essential · ${money(discretionaryCents)} discretionary` : incomeCents ? `${Math.round((spentCents / incomeCents) * 100)}% of income` : `${spend.length} transactions`}</div>
         </div>
         <div>
           <div className={s.eyebrow}>Income</div>
@@ -227,7 +223,7 @@ export function SpendingPage({ d }: { d: Dashboard }) {
 
       <hr className={s.hair} />
 
-      <TransactionLists spend={spend} all={all} monthName={monthName} loading={loading} />
+      <TransactionLists spend={spend} all={all} monthName={monthName} loading={loading} onRetag={retag} />
     </main>
   );
 }

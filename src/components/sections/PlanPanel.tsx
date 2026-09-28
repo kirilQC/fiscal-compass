@@ -212,7 +212,7 @@ export function PlanPanel({ items, categories }: { items: PlanItem[]; categories
       ))}
       {reimbursed.length ? (
         <div className={s.acct}>
-          <p className={s.sub} style={{ margin: "16px 0 4px" }}>Reimbursed · paid by you, paid back · excluded everywhere</p>
+          <p className={s.sub} style={{ margin: "16px 0 4px" }}>Reimbursed · paid by you, paid back · counted as essential spending, left out of the plan total</p>
           {reimbursed.map((i) => (
             <div key={i.id}>
               <button type="button" className={`${s.planRow} ${s.planRowMuted} ${editing === i.id ? s.planRowActive : ""}`} onClick={() => (editing === i.id ? cancel() : startEdit(i))}>

@@ -72,9 +72,9 @@ export function buildContext(d: Dashboard): string {
     for (const i of p.items) {
       const exp = i.pctOfIncome != null ? `${i.pctOfIncome}% of income (${money(i.expectedCents)})` : i.amountCents != null ? money(i.amountCents) : i.amountMinCents != null ? `${money(i.amountMinCents)}–${money(i.amountMaxCents ?? i.amountMinCents)}` : "varies";
       const st = i.status === "paid" ? `paid ${money(i.paidCents)}${i.paidOn ? ` on ${i.paidOn}` : ""}` : i.status === "varies" ? `${money(i.paidCents)} so far` : i.status === "overdue" ? `OVERDUE (due day ${i.dueDay})` : `due${i.dueDay ? ` day ${i.dueDay}` : ""}`;
-      L.push(`- ${i.name} [${i.isReimbursed ? "REIMBURSED — not spending" : i.isDebtPayment ? "debt payment" : i.category}]: ${exp} — ${st}`);
+      L.push(`- ${i.name} [${i.isReimbursed ? "REIMBURSED — paid back later" : i.isDebtPayment ? "debt payment" : i.category}]: ${exp} — ${st}`);
     }
-    L.push("Reimbursed items (FPL, Breezeline) are paid by Kiril and paid back; exclude them from spending, budget and advice.");
+    L.push("Reimbursed items (FPL, Breezeline) are paid by Kiril and paid back later; they count as essential spending but are left out of the plan total. Every purchase is tagged essential or discretionary; discretionary is Kiril's own choice spending.");
   }
 
   if (d.monthlyFlow.length) {

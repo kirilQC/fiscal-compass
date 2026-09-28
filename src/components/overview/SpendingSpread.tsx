@@ -101,7 +101,7 @@ export function SpendingSpread({ d }: { d: Dashboard }) {
     const meta = `${money(slice.value)} · ${pieTotal ? ((slice.value / pieTotal) * 100).toFixed(1) : "0.0"}%`;
     if (!cached) return { title: slice.label, meta, loading: true, totalCents: slice.value };
     const rows: PopupRow[] = cached
-      .filter((t) => !t.isTransfer && !t.isIncome && t.amountCents < 0 && t.category !== "Reimbursed" && groupForCategory(t.category) === slice.label)
+      .filter((t) => !t.isTransfer && !t.isIncome && t.amountCents < 0 && groupForCategory(t.category) === slice.label)
       .sort((a, z) => a.amountCents - z.amountCents)
       .map((t) => ({ postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents }));
     return { title: slice.label, meta, rows, totalCents: slice.value, totalCount: rows.length };

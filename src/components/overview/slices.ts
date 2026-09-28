@@ -1,7 +1,7 @@
 import type { PieSlice } from "@/components/charts";
 import type { CategoryBudget, PlanItem } from "@/lib/types";
 
-const GROUPS = ["Rent", "Car Costs", "Groceries", "Dining", "Shopping", "Subscriptions & Internet", "Health & Renters Insurance", "Giving", "Utilities", "Business tools", "Travel", "Other"] as const;
+const GROUPS = ["Rent", "Car Costs", "Groceries", "Dining", "Shopping", "Subscriptions & Internet", "Health & Renters Insurance", "Giving", "Utilities", "Travel", "Other"] as const;
 export type Group = (typeof GROUPS)[number];
 
 function groupForPlanItem(i: PlanItem): Group {
@@ -11,7 +11,6 @@ function groupForPlanItem(i: PlanItem): Group {
   if (i.isDebtPayment || /\bcar\b|progressive|\bgas\b/.test(n)) return "Car Costs";
   if (i.category === "Groceries") return "Groceries";
   if (i.category === "Giving") return "Giving";
-  if (i.category === "Business") return "Business tools";
   if (i.category === "Subscriptions" || i.category === "Entertainment" || /at&t|att|t-mobile|tmobile|internet|netflix|playstation/.test(n)) return "Subscriptions & Internet";
   if (i.category === "Utilities") return "Utilities";
   if (i.category === "Transport") return "Car Costs";
@@ -31,7 +30,8 @@ export function groupForCategory(c: string): Group {
     case "Health": case "Insurance": case "Fitness": return "Health & Renters Insurance";
     case "Giving": return "Giving";
     case "Utilities": return "Utilities";
-    case "Business": return "Business tools";
+    case "Reimbursed": return "Utilities";
+    case "Loan Payment": return "Car Costs";
     default: return "Other";
   }
 }
@@ -47,6 +47,6 @@ export function plannedSlices(items: PlanItem[]): PieSlice[] {
 }
 
 export function actualSlices(categories: CategoryBudget[]): PieSlice[] {
-  return sum(categories.filter((c) => c.category !== "Reimbursed").map((c) => [groupForCategory(c.category), c.spentCents]));
+  return sum(categories.map((c) => [groupForCategory(c.category), c.spentCents]));
 }
 
