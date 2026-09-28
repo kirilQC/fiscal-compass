@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PlanItem } from "@/lib/types";
-import { money, moneyExact, dateLabel, prettyMerchant } from "@/lib/format";
+import { moneyExact, dateLabel, prettyMerchant } from "@/lib/format";
 import { call } from "@/components/sections/api";
 import { SPEND_CATEGORIES } from "@/lib/spend";
 import type { Txn } from "./TransactionLists";
@@ -12,19 +12,7 @@ import { MerchantCell } from "@/components/MerchantLogo";
 
 const CATEGORIES = SPEND_CATEGORIES.filter((c) => c !== "Reimbursed");
 
-function estimateLabel(i: PlanItem) {
-  if (i.amountMinCents != null && i.amountMaxCents != null && i.amountCents == null) return `${money(i.amountMinCents)}–${money(i.amountMaxCents)}`;
-  if (i.pctOfIncome != null) return `${money(i.expectedCents)} · ${i.pctOfIncome}%`;
-  if (i.amountCents == null) return "varies";
-  return money(i.expectedCents);
-}
 
-function statusLabel(i: PlanItem, isCurrent: boolean) {
-  if (i.status === "paid") return { text: `Paid${i.paidOn ? ` ${dateLabel(i.paidOn)}` : ""}`, cls: s.paid };
-  if (i.status === "overdue") return { text: isCurrent ? `Overdue${i.dueDay ? ` · day ${i.dueDay}` : ""}` : "Not seen", cls: s.over };
-  if (i.status === "due") return { text: isCurrent ? (i.dueDay ? `Due day ${i.dueDay}` : "Due") : "Not seen", cls: "" };
-  return { text: i.paidCents > 0 ? "Varies" : "Varies · nothing yet", cls: "" };
-}
 
 const dollars = (cents: number | null) => (cents != null ? (cents / 100).toFixed(2) : "");
 const toCents = (v: string) => (v.trim() === "" ? null : Math.round(Number(v.replace(/[$,\s]/g, "")) * 100));
@@ -72,7 +60,7 @@ function Fields({ draft, set }: { draft: Draft; set: (d: Draft) => void }) {
   );
 }
 
-function Detail({ item, txns, onChanged, onClose }: { item: PlanItem; txns: Txn[]; onChanged: () => void; onClose: () => void }) {
+export function Detail({ item, txns, onChanged, onClose }: { item: PlanItem; txns: Txn[]; onChanged: () => void; onClose: () => void }) {
   const router = useRouter();
   const [draft, setDraft] = useState(draftOf(item));
   const [err, setErr] = useState<string | null>(null);
@@ -141,7 +129,7 @@ function Detail({ item, txns, onChanged, onClose }: { item: PlanItem; txns: Txn[
   );
 }
 
-function AddExpense({ onChanged }: { onChanged: () => void }) {
+export function AddExpense({ onChanged }: { onChanged: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(draftOf());
@@ -173,58 +161,5 @@ function AddExpense({ onChanged }: { onChanged: () => void }) {
       </div>
       {err ? <p className={s.err}>{err}</p> : null}
     </div>
-  );
-}
-
-export function EssentialsTable({ items, isCurrent, txns, onChanged }: { items: PlanItem[]; isCurrent: boolean; txns: Txn[]; onChanged: () => void }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const rows = items.filter((i) => !i.isReimbursed);
-  const estTotal = rows.reduce((t, i) => t + i.expectedCents, 0);
-  const actTotal = rows.reduce((t, i) => t + i.paidCents, 0);
-  return (
-    <>
-      <table className={s.table}>
-        <thead>
-          <tr>
-            <th>Expense</th>
-            <th className={s.r}>Estimated</th>
-            <th className={s.r}>Actual</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((i) => {
-            const st = statusLabel(i, isCurrent);
-            const isOpen = open === i.id;
-            return (
-              <Fragment key={i.id}>
-                <tr className={s.planRow} onClick={() => setOpen(isOpen ? null : i.id)} aria-expanded={isOpen}>
-                  <td>{i.name}<span className={s.muted}>{i.category === "Transfer" ? "Debt payment" : i.category}</span></td>
-                  <td className={`${s.r} num`}>{estimateLabel(i)}</td>
-                  <td className={`${s.r} num`}>{i.paidCents ? money(i.paidCents) : "—"}</td>
-                  <td className={`${s.st} ${st.cls}`}>{st.text}</td>
-                </tr>
-                {isOpen ? (
-                  <tr>
-                    <td colSpan={4} className={s.planDetailCell}>
-                      <Detail item={i} txns={txns} onChanged={onChanged} onClose={() => setOpen(null)} />
-                    </td>
-                  </tr>
-                ) : null}
-              </Fragment>
-            );
-          })}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td>Total</td>
-            <td className={`${s.r} num`}><b>{money(estTotal)}</b></td>
-            <td className={`${s.r} num`}><b>{money(actTotal)}</b></td>
-            <td className={s.st}>{rows.filter((i) => i.status === "paid").length} of {rows.filter((i) => i.status !== "varies").length} paid</td>
-          </tr>
-        </tfoot>
-      </table>
-      <AddExpense onChanged={onChanged} />
-    </>
   );
 }

@@ -6,7 +6,8 @@ import { computePlan, type PlanRow } from "@/lib/plan";
 import { money, prettyMerchant } from "@/lib/format";
 import { monthlyIncomeCents } from "@/components/overview/IncomePie";
 import { Heatmap, type DayTxn } from "./Heatmap";
-import { EssentialsTable } from "./EssentialsTable";
+import { AddExpense } from "./EssentialsTable";
+import { EssentialsSection } from "./EssentialsSection";
 import { Comparisons } from "./Comparisons";
 import { TransactionLists, type Txn } from "./TransactionLists";
 import { TagReview } from "./TagReview";
@@ -221,11 +222,15 @@ export function SpendingPage({ d }: { d: Dashboard }) {
 
       <hr className={s.hair} />
 
-      <section>
-        <h2 className={s.h2}>Essential expenses</h2>
-        <p className={s.lede}>estimated against what actually posted in {monthName} · click an expense to edit it or see what it caught</p>
-        {planItems.length ? <EssentialsTable items={planItems} isCurrent={isCurrent} txns={spend} onChanged={changed} /> : <p className={s.hint}>No plan yet.</p>}
-      </section>
+      {planItems.length ? (
+        <EssentialsSection items={planItems} txns={spend} lookup={[...spend, ...(prevTxns ?? []).filter(isSpend)]} month={selected} today={today} isCurrent={isCurrent} onChanged={changed} />
+      ) : (
+        <section>
+          <h2 className={s.h2}>Essential expenses</h2>
+          <p className={s.hint}>No essential expenses yet.</p>
+          <AddExpense onChanged={changed} />
+        </section>
+      )}
 
       <hr className={s.hair} />
 
