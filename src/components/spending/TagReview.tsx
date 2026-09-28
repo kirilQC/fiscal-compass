@@ -19,7 +19,7 @@ function Groups({ groups, busy, onTag, keepLabel }: { groups: ReviewGroup[]; bus
       <ul className={s.reviewList}>
         {shown.map((g) => (
           <li key={g.key} className={s.reviewRow}>
-            <MerchantCell src={g.logoUrl} name={prettyMerchant(g.merchant)} size={32}>
+            <MerchantCell src={g.logoUrl} name={prettyMerchant(g.merchant)} category={g.category} size={32}>
               <div className={s.muted} style={{ marginLeft: 0 }}>
                 {g.category} · {g.count > 1 ? `${g.count} charges · ` : ""}{money(g.totalCents)} · last {dateLabel(g.lastOn)}
               </div>
@@ -91,7 +91,7 @@ export function TagReview({ onChanged, refreshKey }: { onChanged: () => void; re
           <ul className={s.reviewList}>
             {suggestions.map((sg) => (
               <li key={sg.txnId} className={s.reviewRow}>
-                <MerchantCell src={sg.logoUrl} name={`${prettyMerchant(sg.merchant)} · ${moneyExact(sg.amountCents)}`} size={32}>
+                <MerchantCell src={sg.logoUrl} name={`${prettyMerchant(sg.merchant)} · ${moneyExact(sg.amountCents)}`} category={sg.category} size={32}>
                   <div className={s.muted} style={{ marginLeft: 0 }}>{dateLabel(sg.postedOn)} · looks like <b>{sg.planItemName}</b> ({money(sg.expectedCents)} expected)</div>
                 </MerchantCell>
                 <div className={s.reviewBtns}>

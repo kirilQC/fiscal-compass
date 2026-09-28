@@ -28,7 +28,7 @@ export function Ledger({ d }: { d: Dashboard }) {
               <tr key={t.id}>
                 <td className="num">{dateLabel(t.postedOn)}</td>
                 <td>
-                  <MerchantCell src={t.logoUrl} name={t.merchant} size={24}>
+                  <MerchantCell src={t.logoUrl} name={t.merchant} category={t.category} size={24}>
                     {t.anomalyNote ? <span className={s.flag}>Unusual · {t.anomalyNote}</span> : null}
                   </MerchantCell>
                 </td>

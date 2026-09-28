@@ -9,6 +9,7 @@ export interface PopupRow {
   postedOn: string;
   merchant: string;
   logoUrl?: string | null;
+  category?: string;
   amountCents: number;
 }
 
@@ -59,7 +60,7 @@ export function SlicePopup({ x, y, title, meta, rows, totalCents, totalCount, su
             {shown.map((r, i) => (
               <li key={`${r.postedOn}-${r.merchant}-${i}`}>
                 <span className={s.d}>{dateLabel(r.postedOn)}</span>
-                <span className={s.m}><MerchantCell src={r.logoUrl} name={r.merchant} size={18} /></span>
+                <span className={s.m}><MerchantCell src={r.logoUrl} name={r.merchant} category={r.category} size={18} /></span>
                 <span className={`${s.a} num`}>{moneyExact(Math.abs(r.amountCents))}</span>
               </li>
             ))}

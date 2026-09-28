@@ -311,7 +311,7 @@ function TxnTable({ rows, isAll }: { rows: Txn[]; isAll: boolean }) {
           <tr key={t.id} className={t.status === "pending" ? s.pending : undefined}>
             <td className={`${s.date} num`}>{dateLabel(t.postedOn)}</td>
             <td>
-              <MerchantCell src={t.logoUrl} name={prettyMerchant(t.merchant)}>
+              <MerchantCell src={t.logoUrl} name={prettyMerchant(t.merchant)} category={t.category}>
                 <span className={s.tag}>{t.category}</span>
                 {isAll ? <span className={s.acct}>{prettyName(t.accountName)}</span> : null}
                 {t.status === "pending" ? <span className={s.acct}>pending</span> : null}

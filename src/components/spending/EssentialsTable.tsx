@@ -128,7 +128,7 @@ function Detail({ item, txns, onChanged, onClose }: { item: PlanItem; txns: Txn[
       </div>
       {matched.length ? (
         <ul className={s.planMatched}>
-          {matched.map((t) => <li key={t.id}><MerchantCell src={t.logoUrl} name={`${dateLabel(t.postedOn)} · ${prettyMerchant(t.merchant)}`} size={20} /><span className="num">{moneyExact(-t.amountCents)}</span></li>)}
+          {matched.map((t) => <li key={t.id}><MerchantCell src={t.logoUrl} name={`${dateLabel(t.postedOn)} · ${prettyMerchant(t.merchant)}`} category={t.category} size={20} /><span className="num">{moneyExact(-t.amountCents)}</span></li>)}
         </ul>
       ) : null}
       <div className={s.planActions}>

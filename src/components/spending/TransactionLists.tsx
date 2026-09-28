@@ -43,7 +43,7 @@ function Table({ rows, onRetag }: { rows: Txn[]; onRetag?: (id: string, next: Sp
           <tr key={t.id} className={t.status === "pending" ? s.pending : undefined}>
             <td className={`${s.date} num`}>{dateLabel(t.postedOn)}</td>
             <td>
-              <MerchantCell src={t.logoUrl} name={prettyMerchant(t.merchant)}>
+              <MerchantCell src={t.logoUrl} name={prettyMerchant(t.merchant)} category={t.category}>
                 <span className={s.muted}>{t.accountName}</span>
                 {t.status === "pending" ? <span className={s.muted}>pending</span> : null}
                 {t.isTransfer ? <span className={s.tag}>transfer</span> : null}

@@ -127,7 +127,7 @@ export function SpendingPage({ d }: { d: Dashboard }) {
   for (const t of spend) {
     if (t.spendClass !== "discretionary") continue;
     const list = byDay.get(t.postedOn) ?? [];
-    list.push({ id: t.id, postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents, logoUrl: t.logoUrl });
+    list.push({ id: t.id, postedOn: t.postedOn, merchant: prettyMerchant(t.merchant), amountCents: t.amountCents, logoUrl: t.logoUrl, category: t.category });
     byDay.set(t.postedOn, list);
   }
 

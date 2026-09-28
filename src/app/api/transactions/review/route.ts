@@ -22,6 +22,7 @@ export interface PlanSuggestion {
   planItemId: string;
   planItemName: string;
   expectedCents: number;
+  category: string;
   logoUrl: string | null;
 }
 
@@ -100,7 +101,7 @@ export async function GET() {
       const best = candidates.sort((a, b) => Math.abs(-a.amount_cents - expected) - Math.abs(-b.amount_cents - expected))[0];
       if (!best) continue;
       suggested.add(best.id);
-      suggestions.push({ txnId: best.id, merchant: best.merchant, amountCents: -best.amount_cents, postedOn: best.posted_on, planItemId: item.id, planItemName: item.name, expectedCents: expected, logoUrl: logos.get(logoKey(best.merchant)) ?? null });
+      suggestions.push({ txnId: best.id, merchant: best.merchant, amountCents: -best.amount_cents, postedOn: best.posted_on, planItemId: item.id, planItemName: item.name, expectedCents: expected, category: best.category, logoUrl: logos.get(logoKey(best.merchant)) ?? null });
     }
 
     const open = rows.filter((t) => !t.spend_class && !suggested.has(t.id) && !claimed.has(t.id));
