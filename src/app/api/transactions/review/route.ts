@@ -1,6 +1,6 @@
 import { withUser } from "@/lib/api";
 import { computePlan, expectedCents, getPlanRows } from "@/lib/plan";
-import { DISCRETIONARY_CATEGORIES, essentialPatterns, needsVerify, normalizeMerchant, spendClass, tagMemory } from "@/lib/spend";
+import { DISCRETIONARY_CATEGORIES, essentialPatterns, matchesPatterns, needsVerify, normalizeMerchant, spendClass, tagMemory } from "@/lib/spend";
 
 export interface ReviewGroup {
   key: string;
@@ -55,6 +55,7 @@ export async function GET() {
     const now = new Date();
     const since = new Date(Date.now() - 365 * 86400_000).toISOString().slice(0, 10);
     const graceStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), -3)).toISOString().slice(0, 10);
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
     const [{ data, error }, planRows, { data: tagged }] = await Promise.all([
       supabase
         .from("transactions")
@@ -80,9 +81,12 @@ export async function GET() {
       const row = planRows.find((r) => r.id === item.id);
       if (!row || item.isReimbursed || item.status === "paid" || item.status === "varies") continue;
       const expected = expectedCents(row, 0) || item.expectedCents;
+      const from = row.due_day != null && row.due_day <= 3 ? graceStart : monthStart;
       const candidates = recent.filter(
         (t) =>
+          t.posted_on >= from &&
           !claimed.has(t.id) &&
+          !matchesPatterns(t.merchant, classifier.patterns) &&
           !suggested.has(t.id) &&
           !t.spend_class &&
           !t.is_transfer &&
