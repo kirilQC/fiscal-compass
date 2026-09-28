@@ -331,77 +331,68 @@ export async function alignHoldingsToBalances(admin: SupabaseClient, userId: str
   }
 }
 
+// Listing is free, so every sync walks Stripe's full history for the account: rows we lack are added, recent rows are
+// refreshed (pending → posted), and rows Stripe no longer lists (voided holds, IDs from an earlier link) are removed.
 async function pullTransactions(admin: SupabaseClient, s: Stripe, a: AccountRow, rules: Rule[]) {
-  const { data: newest } = await admin
+  const { data: held, error: heldError } = await admin
     .from("transactions")
-    .select("posted_on")
+    .select("id,provider_txn_id,posted_on,category,category_source")
     .eq("account_id", a.id)
-    .order("posted_on", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const since = newest?.posted_on
-    ? Math.floor(new Date(`${newest.posted_on}T00:00:00Z`).getTime() / 1000) - 7 * 86400
-    : undefined;
+    .not("provider_txn_id", "is", null)
+    .limit(20000);
+  if (heldError) throw new Error(heldError.message);
+  const heldById = new Map((held ?? []).map((h) => [h.provider_txn_id as string, h]));
+  const newest = (held ?? []).reduce<string | null>((m, h) => (!m || h.posted_on > m ? h.posted_on : m), null);
+  const windowStart = newest ? Math.floor(new Date(`${newest}T00:00:00Z`).getTime() / 1000) - 7 * 86400 : 0;
+
+  const listed: Stripe.FinancialConnections.Transaction[] = [];
+  try {
+    for await (const t of s.financialConnections.transactions.list({ account: a.provider_account_id!, limit: 100 })) listed.push(t);
+  } catch (e) {
+    // Transactions feature may not be enabled on the Stripe account yet.
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+  if (listed.length === 0) return 0;
+
+  const live = listed.filter((t) => t.status !== "void");
+  const liveIds = new Set(live.map((t) => t.id));
+  const stale = (held ?? []).filter((h) => !liveIds.has(h.provider_txn_id as string)).map((h) => h.id as string);
+  for (let i = 0; i < stale.length; i += 200) {
+    const { error } = await admin.from("transactions").delete().in("id", stale.slice(i, i + 200));
+    if (error) throw new Error(error.message);
+  }
 
   const rows: Record<string, unknown>[] = [];
-  let startingAfter: string | undefined;
-  for (;;) {
-    let page: Stripe.ApiList<Stripe.FinancialConnections.Transaction>;
-    try {
-      page = await s.financialConnections.transactions.list({
-        account: a.provider_account_id!,
-        limit: 100,
-        ...(since ? { transacted_at: { gte: since } } : {}),
-        ...(startingAfter ? { starting_after: startingAfter } : {}),
-      });
-    } catch (e) {
-      // Transactions feature may not be enabled on the Stripe account yet.
-      return { error: e instanceof Error ? e.message : String(e) };
-    }
-    for (const t of page.data) {
-      const merchant = cleanMerchant(t.description);
-      const c = categorize(merchant, rules, { accountKind: a.kind, amountCents: t.amount });
-      // Stripe FC amounts: positive = money into the account holder's position, negative = money out.
-      rows.push({
-        user_id: a.user_id,
-        account_id: a.id,
-        provider_txn_id: t.id,
-        posted_on: new Date(t.transacted_at * 1000).toISOString().slice(0, 10),
-        amount_cents: t.amount,
-        merchant,
-        description: t.description,
-        category: c.category,
-        category_source: c.source,
-        status: t.status === "pending" ? "pending" : "posted",
-        is_transfer: c.isTransfer,
-        is_income: c.isIncome || (t.amount > 0 && c.category === "Income"),
-      });
-    }
-    if (!page.has_more || page.data.length === 0) break;
-    startingAfter = page.data[page.data.length - 1].id;
+  for (const t of live) {
+    if (heldById.has(t.id) && t.transacted_at < windowStart) continue;
+    const merchant = cleanMerchant(t.description);
+    const c = categorize(merchant, rules, { accountKind: a.kind, amountCents: t.amount });
+    const prior = heldById.get(t.id);
+    const manual = prior?.category_source === "manual";
+    // Stripe FC amounts: positive = money into the account holder's position, negative = money out.
+    rows.push({
+      user_id: a.user_id,
+      account_id: a.id,
+      provider_txn_id: t.id,
+      posted_on: new Date(t.transacted_at * 1000).toISOString().slice(0, 10),
+      amount_cents: t.amount,
+      merchant,
+      description: t.description,
+      category: manual ? prior.category : c.category,
+      category_source: manual ? "manual" : c.source,
+      status: t.status === "pending" ? "pending" : "posted",
+      is_transfer: c.isTransfer,
+      is_income: c.isIncome || (t.amount > 0 && c.category === "Income"),
+    });
   }
   if (rows.length === 0) return 0;
 
-  // Preserve manual categorizations on re-upsert.
-  const ids = rows.map((r) => r.provider_txn_id as string);
-  const { data: existing } = await admin
-    .from("transactions")
-    .select("provider_txn_id,category,category_source")
-    .eq("user_id", a.user_id)
-    .in("provider_txn_id", ids);
-  const manual = new Map((existing ?? []).filter((e) => e.category_source === "manual").map((e) => [e.provider_txn_id, e.category]));
-  for (const r of rows) {
-    const m = manual.get(r.provider_txn_id as string);
-    if (m) {
-      r.category = m;
-      r.category_source = "manual";
-    }
-  }
-
   await flagAnomalies(admin, a.user_id, rows);
-  const { error } = await admin.from("transactions").upsert(rows, { onConflict: "user_id,provider_txn_id" });
-  if (error) throw new Error(error.message);
-  return rows.length;
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await admin.from("transactions").upsert(rows.slice(i, i + 500), { onConflict: "user_id,provider_txn_id" });
+    if (error) throw new Error(error.message);
+  }
+  return rows.filter((r) => !heldById.has(r.provider_txn_id as string)).length;
 }
 
 async function flagAnomalies(admin: SupabaseClient, userId: string, rows: Record<string, unknown>[]) {
