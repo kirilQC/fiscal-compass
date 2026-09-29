@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styles from "./TopBar.module.css";
 import { LogoMark } from "./Logo";
-import { AdvisorIcon, CreditIcon, GoalsIcon, InvestmentsIcon, OverviewIcon, SettingsIcon, SpendingIcon } from "./NavIcons";
+import { CreditIcon, GoalsIcon, InvestmentsIcon, OverviewIcon, SettingsIcon, SpendingIcon } from "./NavIcons";
 
 const NAV = [
   { href: "/", label: "Overview", Icon: OverviewIcon },
@@ -12,9 +12,15 @@ const NAV = [
   { href: "/credit", label: "Credit", Icon: CreditIcon },
   { href: "/spending", label: "Spending", Icon: SpendingIcon },
   { href: "/goals", label: "Goals", Icon: GoalsIcon },
-  { href: "/advisor", label: "Advisor", Icon: AdvisorIcon },
+  { href: "/advisor", label: "Sterling", Icon: SterlingIcon },
   { href: "/settings", label: "Settings", Icon: SettingsIcon },
 ];
+
+// Sterling, the advisor, appears in the nav as his own small portrait.
+function SterlingIcon() {
+  // eslint-disable-next-line @next/next/no-img-element -- tiny static avatar
+  return <img src="/sterling.jpg" alt="" width={18} height={18} className={styles.avatar} />;
+}
 
 function BrandInner() {
   return (

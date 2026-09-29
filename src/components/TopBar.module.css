@@ -91,3 +91,5 @@
 .skelRow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
 .skelRow > span { display: block; height: 120px; background: var(--rule); opacity: 0.35; }
 @media (max-width: 760px) { .skelRow { grid-template-columns: 1fr; } }
+.avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: 0 0 0 1px var(--rule2); }
+.avatar { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: 0 0 0 1px var(--rule2); }

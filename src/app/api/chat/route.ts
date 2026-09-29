@@ -17,6 +17,8 @@ const Body = z.object({
 
 // Status lines ride in the text stream between these markers; the client strips them from the reply.
 const STATUS_OPEN = "\u001e", STATUS_CLOSE = "\u001f";
+// The steps Sterling took are saved ahead of the reply between these markers, so old answers keep their trace.
+const STEPS_MARK = "\u001d";
 
 export async function POST(req: Request) {
   const parsed = Body.safeParse(await req.json().catch(() => null));
@@ -38,7 +40,8 @@ export async function POST(req: Request) {
   if (!message) return NextResponse.json({ error: "message required" }, { status: 400 });
 
   const prior = await store.messages(threadId, 29);
-  const history = [...prior, { role: "user" as const, content: message }];
+  // Saved replies carry their step trace up front; the model only needs the words.
+  const history = [...prior.map((m) => ({ ...m, content: m.content.replace(/^\u001d[^\u001d]*\u001d/, "") })), { role: "user" as const, content: message }];
   const saved = store.add(threadId, "user", message);
 
   // Sample mode has no ledger: fall back to the snapshot-based reply.
@@ -48,12 +51,16 @@ export async function POST(req: Request) {
 
   const encoder = new TextEncoder();
   let full = "";
+  const steps: string[] = [];
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       controller.enqueue(encoder.encode(`${STATUS_OPEN}Looking at your numbers${STATUS_CLOSE}`));
       try {
         for await (const ev of events) {
-          if (ev.type === "status") controller.enqueue(encoder.encode(`${STATUS_OPEN}${ev.text}${STATUS_CLOSE}`));
+          if (ev.type === "status") {
+            if (!steps.includes(ev.text)) steps.push(ev.text);
+            controller.enqueue(encoder.encode(`${STATUS_OPEN}${ev.text}${STATUS_CLOSE}`));
+          }
           else { full += ev.delta; controller.enqueue(encoder.encode(ev.delta)); }
         }
       } catch (e) {
@@ -62,7 +69,7 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(note));
       } finally {
         await saved;
-        if (full.trim()) await store.add(threadId, "assistant", full);
+        if (full.trim()) await store.add(threadId, "assistant", steps.length ? `${STEPS_MARK}${JSON.stringify(steps)}${STEPS_MARK}${full}` : full);
         await store.titleIfNew(threadId, message);
         controller.close();
       }
