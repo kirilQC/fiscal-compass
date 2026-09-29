@@ -4,6 +4,7 @@ import { money } from "../format";
 import { openai } from "../advisor";
 import { computeInsights, monthName, monthlyDigest } from "./insights";
 import type { Ledger } from "./ledger";
+import { band } from "../credit";
 import { runTool, toolStatus, TOOLS } from "./tools";
 
 // The advisor: a model with a standing briefing on Kiril's money and tools to dig into the ledger itself.
@@ -28,6 +29,12 @@ export function briefing(L: Ledger): string {
   if (L.plan) B.push(`Essentials plan: ${money(L.plan.totalCents)} a month across ${L.plan.items.filter((i) => !i.isReimbursed).length} bills. Discretionary cap: ${money(L.discretionaryCapCents)} a month. Whatever is left after essentials and the cap is what he means to keep.`);
   B.push(`Every purchase is tagged essential (bills and necessities in the plan), discretionary (his own choices), or untagged (waiting for him to decide). Transfers between his own accounts and income are not spending.`);
   B.push(`\nAccounts: ${L.accounts.map((a) => `${a.institution} ${a.name} (${a.kind}) ${a.balanceCents == null ? "balance unknown" : money(a.balanceCents)}${a.creditLimitCents ? ` of ${money(a.creditLimitCents)} limit` : ""}`).join("; ")}.`);
+  const cs = L.creditScores;
+  if (cs.length) {
+    const last = cs[cs.length - 1];
+    B.push(`\nCredit score: ${last.score} (${last.model}, ${band(last.score)}) as of ${last.asOf}. History, oldest first: ${cs.slice(-18).map((s) => `${s.asOf.slice(0, 7)} ${s.score}${s.model === last.model ? "" : ` ${s.model}`}`).join(", ")}. Kiril logs it by hand from Chase Credit Journey; connect it to his card utilization when relevant.`);
+  } else B.push(`\nCredit score: none logged yet.`);
+  if (L.creditReport) B.push(`Credit report he uploaded on ${L.creditReport.uploadedAt.slice(0, 10)}: ${L.creditReport.summary}\nDetail: ${L.creditReport.details.slice(0, 3000)}`);
   const past = L.conversations.slice(0, 10);
   if (past.length) B.push(`\nRecent conversations with Kiril (newest first; use search_past_conversations for detail):\n${past.map((c) => `- ${c.updatedAt.slice(0, 10)} "${c.title}": he asked "${c.asked}"${c.answered ? `; you said "${c.answered}"` : ""}`).join("\n")}`);
   B.push(`\nLast six months:\n${monthlyDigest(L).map((l) => `- ${l}`).join("\n")}`);

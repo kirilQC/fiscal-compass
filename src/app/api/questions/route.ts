@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 import { loadLedger } from "@/lib/advisor/ledger";
 import { computeQuestions } from "@/lib/advisor/questions";
 import { REMEMBERED, runAdvisor } from "@/lib/advisor/agent";
+import { addScore, band, modelFrom, scoreFrom } from "@/lib/credit";
 
 export const maxDuration = 60;
 
@@ -29,6 +30,19 @@ export async function POST(req: Request) {
   const ledger = await loadLedger(db.supabase, db.userId);
   const q = computeQuestions(ledger).find((x) => x.id === id);
   if (!q) return NextResponse.json({ error: "That question has already been answered." }, { status: 404 });
+
+  // The credit score check-in is just a number to log; no model needed.
+  if (q.id.startsWith("score-")) {
+    const score = scoreFrom(answer);
+    if (!score) return NextResponse.json({ error: "I need the number itself, like 742." }, { status: 400 });
+    const model = modelFrom(answer);
+    await addScore(db.supabase, db.userId, { score, asOf: ledger.today, model, source: "sterling" });
+    await db.supabase.from("advisor_notes").insert({ user_id: db.userId, kind: "question", body: q.text, anchor: { qid: q.id, answer } });
+    const prev = [...ledger.creditScores].reverse().find((s) => s.model === model);
+    const diff = prev ? score - prev.score : 0;
+    const reply = `Logged ${score} (${model}), ${band(score).toLowerCase()}.${prev ? diff ? ` That's ${diff > 0 ? "up" : "down"} ${Math.abs(diff)} since ${prev.asOf.slice(0, 7) === ledger.month ? "earlier this month" : "last time"}.` : " Same as last time." : " I'll ask again next month."}`;
+    return NextResponse.json({ reply, remembered: [] });
+  }
 
   let reply = "";
   const remembered: string[] = [];

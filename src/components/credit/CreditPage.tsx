@@ -9,6 +9,8 @@ import { prettyName } from "@/components/sections/names";
 import type { Account, CreditSummary } from "@/lib/types";
 import s from "./CreditPage.module.css";
 import { MerchantCell } from "@/components/MerchantLogo";
+import { CreditScore } from "./CreditScore";
+import type { CreditReport, CreditScore as Score } from "@/lib/credit";
 
 type Txn = {
   id: string;
@@ -25,11 +27,11 @@ type Txn = {
   logoUrl?: string | null;
 };
 
-type Props = { credit: CreditSummary[]; accounts: Account[]; month: string };
+type Props = { credit: CreditSummary[]; accounts: Account[]; month: string; score: { scores: Score[]; report: CreditReport | null } };
 
 const PLACEHOLDERS = ["Card 2", "Card 3"];
 
-export function CreditPage({ credit, accounts, month }: Props) {
+export function CreditPage({ credit, accounts, month, score }: Props) {
   const [selected, setSelectedRaw] = useState<string>(credit[0]?.accountId ?? "all");
   const setSelected = (id: string) => { setSelectedRaw(id); setShown(10); };
   const [txns, setTxns] = useState<Txn[] | null>(null);
@@ -118,6 +120,8 @@ export function CreditPage({ credit, accounts, month }: Props) {
           </button>
         </div>
       </div>
+
+      <CreditScore scores={score.scores} report={score.report} />
 
       {credit.length === 0 ? (
         <p className={s.hint}>No credit cards linked yet. Link one in Settings and it will appear here.</p>

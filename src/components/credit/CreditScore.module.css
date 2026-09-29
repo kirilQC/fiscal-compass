@@ -1,0 +1,61 @@
+/* Credit score band on the Credit page: the number, where it sits on 300 to 850, its trend, and the two ways in. */
+.band { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); column-gap: 48px; row-gap: 16px; margin: 36px 0 8px; padding: 26px 28px 22px; border: 1px solid var(--rule); border-radius: 16px; background: var(--surface); }
+.eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); }
+.hint { color: var(--ink3); font-size: 13px; margin: 0; max-width: 56ch; line-height: 1.5; }
+.ok { color: var(--good); font-size: 12.5px; }
+.err { color: var(--crit); font-size: 12.5px; }
+
+.now { display: grid; gap: 6px; align-content: start; }
+.scoreRow { display: flex; align-items: baseline; gap: 14px; margin: 6px 0 14px; }
+.score { font-family: var(--serif); font-weight: 300; font-size: 92px; line-height: 0.95; letter-spacing: -0.01em; }
+.up, .down { font-size: 14px; font-variant-numeric: tabular-nums; }
+.up { color: var(--good); } .down { color: var(--crit); }
+.meta { color: var(--ink2); font-size: 13px; }
+.meta b { color: var(--ink); font-weight: 500; }
+
+.gauge { margin-top: 14px; max-width: 340px; }
+.track { position: relative; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--crit) 0%, color-mix(in srgb, var(--crit) 40%, var(--accent)) 30%, var(--accent) 60%, var(--good) 100%); opacity: 0.9; }
+.track i { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--surface); }
+.track b { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px var(--surface); }
+.ticks { position: relative; height: 16px; margin-top: 6px; font-size: 10.5px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.ticks span:first-child { left: 0; transform: none; }
+.ticks span:last-child { right: 0; transform: none; }
+
+.chart { min-width: 0; align-self: center; }
+
+.actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-top: 16px; border-top: 1px solid var(--rule); }
+.primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.ghost { background: none; border: 1px solid var(--rule2); color: var(--ink); border-radius: 999px; padding: 8px 15px; font: inherit; font-size: 13px; cursor: pointer; }
+.ghost:hover { border-color: var(--ink3); }
+.primary:disabled, .ghost:disabled { opacity: 0.6; cursor: default; }
+.links { display: inline-flex; gap: 16px; margin-left: auto; }
+.links button, .inline { background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px; color: var(--accent); cursor: pointer; }
+.links button:hover, .inline:hover { text-decoration: underline; }
+
+.drawer { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; align-items: end; }
+.field { display: grid; gap: 6px; }
+.field span { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
+.input { background: var(--surface2, var(--surface)); border: 1px solid var(--rule2); border-radius: 9px; padding: 8px 11px; color: var(--ink); font: inherit; font-size: 14px; min-width: 0; }
+.input:focus { outline: none; border-color: var(--accent); }
+.drawer .field:first-child .input { width: 96px; }
+
+.hist { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; max-height: 320px; overflow-y: auto; }
+.hist li { display: grid; grid-template-columns: 120px 56px minmax(0, 1fr) auto; gap: 14px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--rule); font-size: 13px; color: var(--ink2); }
+.hist li:last-child { border-bottom: 0; }
+.hist b { font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--ink); }
+.hist button { background: none; border: 0; color: var(--ink3); font: inherit; font-size: 12px; cursor: pointer; }
+.hist button:hover { color: var(--crit); }
+
+.report { display: grid; gap: 12px; width: 100%; max-width: 820px; }
+.summary { font-family: var(--serif); font-weight: 300; font-size: 20px; line-height: 1.4; margin: 0; color: var(--ink); }
+.facts { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; color: var(--ink2); line-height: 1.5; }
+.details summary { cursor: pointer; font-size: 12.5px; color: var(--accent); }
+.details pre { white-space: pre-wrap; font: inherit; font-size: 13px; line-height: 1.6; color: var(--ink2); margin: 10px 0 0; max-height: 360px; overflow-y: auto; }
+
+@media (max-width: 860px) {
+  .band { grid-template-columns: minmax(0, 1fr); padding: 20px 18px; }
+  .score { font-size: 72px; }
+  .links { margin-left: 0; }
+  .hist li { grid-template-columns: 96px 48px minmax(0, 1fr) auto; gap: 10px; }
+}

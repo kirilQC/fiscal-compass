@@ -63,6 +63,15 @@ export function computeQuestions(L: Ledger): Question[] {
       text: `${pretty(r.key)} has charged about ${money(r.typicalCents)} a month since recently. What do you use it for, and is it something you plan to keep paying for?` });
   }
 
+  // The monthly credit score check-in, until he has logged one this month.
+  if (!L.creditScores.some((s) => ym(s.asOf) === L.month)) {
+    const last = L.creditScores[L.creditScores.length - 1];
+    Q.push({ id: `score-${L.month}`, about: "Credit score",
+      text: last
+        ? `What's your credit score this month? Last time it was ${last.score} (${monthName(ym(last.asOf))}). Open Chase Credit Journey and tell me the number, and I'll track it against your card balances.`
+        : `What's your credit score right now? Open Chase Credit Journey (or the Experian app) and tell me the number, and I'll start tracking it against your card balances.` });
+  }
+
   // Untagged charges the numbers can't place.
   const untagged = L.spend.filter((t) => t.tag === "untagged" && t.date >= `${monthShift(L.month, -1)}-01`).sort((a, b) => out(b) - out(a));
   if (untagged[0] && !knows(untagged[0].merchant)) {
