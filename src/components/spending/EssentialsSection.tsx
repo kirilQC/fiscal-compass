@@ -76,17 +76,30 @@ function Diff({ item }: { item: PlanItem }) {
   return d > 0 ? <span className={s.over}>+{money(d)}</span> : <span className={s.good}>−{money(-d)}</span>;
 }
 
+// Every bar shares one scale: the estimate always sits at the same point, so over and under read at a glance.
+// Spend up to the estimate fills in the area's color; anything past it is the pink overage.
+const EST_AT = 0.72;
+
 function Meter({ item }: { item: PlanItem }) {
-  const top = Math.max(item.expectedCents, item.paidCents) || 1;
+  const color = AREA_COLOR[areaOf(item)];
+  const hasEst = item.expectedCents > 0 && !noEstimate(item);
+  const ratio = hasEst ? item.paidCents / item.expectedCents : 1;
+  const over = isOver(item);
+  const within = hasEst ? Math.min(ratio, over ? 1 : Math.min(ratio, 1)) * EST_AT : 1;
+  const reach = over ? Math.min(1, ratio * EST_AT) : within;
+  const clipped = over && ratio * EST_AT > 1;
   return (
     <span className={s.meter}>
       <span className={s.mv}>
-        <span className={`num ${isOver(item) ? s.over : ""}`}>{item.paidCents ? money(item.paidCents) : "—"}</span>
-        <span className="num">{estimateLabel(item)}</span>
+        <span className={`num ${over ? s.over : ""}`}>{item.paidCents ? money(item.paidCents) : "—"}</span>
+        <span className={`num ${hasEst ? s.estAt : ""}`} style={hasEst ? { right: `${(1 - EST_AT) * 100}%` } : undefined}>{hasEst ? estimateLabel(item) : "no estimate"}</span>
       </span>
-      <span className={s.bar} style={{ ["--gc" as string]: AREA_COLOR[areaOf(item)] }}>
-        <i className={isOver(item) ? s.barOver : undefined} style={{ width: `${(item.paidCents / top) * 100}%` }} />
-        {item.expectedCents > 0 ? <b style={{ left: `calc(${(item.expectedCents / top) * 100}% - 1px)` }} /> : null}
+      <span className={s.bar} style={{ ["--gc" as string]: color }}>
+        {unpaid(item) && hasEst ? <span className={s.barDue} style={{ width: `${EST_AT * 100}%` }} /> : null}
+        {item.paidCents ? <i style={{ width: `${within * 100}%` }} /> : null}
+        {over ? <i className={s.barOver} style={{ left: `${EST_AT * 100}%`, width: `${(reach - EST_AT) * 100}%` }} /> : null}
+        {hasEst ? <b style={{ left: `calc(${EST_AT * 100}% - 1px)` }} title={`Estimate ${estimateLabel(item)}`} /> : null}
+        {clipped ? <em className={s.times}>{ratio.toFixed(1)}×</em> : null}
       </span>
     </span>
   );
