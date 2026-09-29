@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 
-export function LinkAccountButton({ label = "Link a bank account" }: { label?: string }) {
+export function LinkAccountButton({ label = "Link a bank account", className }: { label?: string; className?: string }) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "working" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,8 @@ export function LinkAccountButton({ label = "Link a bank account" }: { label?: s
         type="button"
         onClick={link}
         disabled={state === "working"}
-        style={{
+        className={className}
+        style={className ? undefined : {
           padding: "9px 16px",
           border: "1px solid var(--ink)",
           fontSize: 13,

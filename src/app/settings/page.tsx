@@ -1,34 +1,39 @@
 import { getDashboard } from "@/lib/data";
 import { TopBar } from "@/components/TopBar";
-import { LinkAccountButton } from "@/components/LinkAccountButton";
-import { money } from "@/lib/format";
-import { PageFoot, PageHead } from "@/components/sections/PageHead";
-import { AddManualAccount, BriefPreview, DetectedPaychecks, IncomeSettings, SignOut, SyncNow } from "@/components/sections/SettingsPanels";
+import { moneyExact } from "@/lib/format";
 import { getSession } from "@/lib/session";
-import { monthToDateCost } from "@/lib/sync";
+import { fetchLog, monthToDateCost } from "@/lib/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { Account } from "@/lib/types";
-import { AccountsEditor } from "@/components/sections/AccountsEditor";
-import { LearnedContext } from "@/components/sections/LearnedContext";
-import { FetchLog } from "@/components/sections/FetchLog";
-import s from "@/components/sections/sections.module.css";
+import { SettingsShell } from "@/components/settings/SettingsShell";
+import { AccountsPanel } from "@/components/settings/AccountsPanel";
+import { LogPanel, type LogEntry } from "@/components/settings/LogPanel";
+import { SterlingPanel, type Memory } from "@/components/settings/SterlingPanel";
+import { PaychecksPanel, type Paycheck } from "@/components/settings/PaychecksPanel";
 
 export default async function SettingsPage() {
   const d = await getDashboard();
   const session = await getSession();
+  const settings = d.settings ?? DEFAULT_SETTINGS;
   let hidden: Account[] = [];
   let monthUsd: number | null = null;
-  if (session && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try { monthUsd = (await monthToDateCost(createAdminClient(), session.userId)).monthUsd; } catch { monthUsd = null; }
-  }
+  let log: LogEntry[] = [];
+  let memories: Memory[] = [];
+  let paychecks: Paycheck[] = [];
+
   if (session) {
-    const { data } = await session.supabase
-      .from("accounts")
-      .select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left,balances_daily(balance_cents,as_of)")
-      .eq("user_id", session.userId)
-      .eq("is_active", false);
-    hidden = (data ?? []).map((a) => {
+    const admin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : null;
+    const [hiddenQ, memQ, payQ, cost, entries] = await Promise.all([
+      session.supabase.from("accounts")
+        .select("id,institution,name,kind,last4,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left,balances_daily(balance_cents,as_of)")
+        .eq("user_id", session.userId).eq("is_active", false),
+      session.supabase.from("advisor_notes").select("id,body,created_at").eq("user_id", session.userId).eq("kind", "memory").order("created_at", { ascending: true }),
+      session.supabase.from("paychecks").select("id,pay_date,employer,net_cents").eq("user_id", session.userId).order("pay_date", { ascending: false }).limit(60),
+      admin ? monthToDateCost(admin, session.userId).then((c) => c.monthUsd).catch(() => null) : Promise.resolve(null),
+      admin ? fetchLog(admin, session.userId).catch(() => []) : Promise.resolve([]),
+    ]);
+    hidden = (hiddenQ.data ?? []).map((a) => {
       const bals = (a.balances_daily as { balance_cents: number; as_of: string }[] | null) ?? [];
       const latest = bals.sort((x, y) => y.as_of.localeCompare(x.as_of))[0];
       return {
@@ -37,88 +42,24 @@ export default async function SettingsPage() {
         loanPaymentCents: a.loan_payment_cents, loanPaymentsLeft: a.loan_payments_left, changeMtdCents: null,
       };
     });
+    memories = memQ.data ?? [];
+    paychecks = (payQ.data ?? []).map((p) => ({ id: p.id, payDate: p.pay_date, employer: p.employer, netCents: p.net_cents }));
+    monthUsd = cost;
+    log = entries;
   }
-  const settings = d.settings ?? DEFAULT_SETTINGS;
-  const assets = d.accounts.filter((a) => a.balanceCents >= 0).reduce((sum, a) => sum + a.balanceCents, 0);
-  const debts = d.accounts.filter((a) => a.balanceCents < 0).reduce((sum, a) => sum + a.balanceCents, 0);
+
+  const lastPay = paychecks[0]?.netCents ?? settings.paycheckNetCents;
+  const tabs = [
+    { id: "accounts", label: "Linked accounts", summary: `${d.accounts.length} linked`, panel: <AccountsPanel accounts={d.accounts} hidden={hidden} asOf={d.asOf} monthUsd={monthUsd} /> },
+    { id: "log", label: "Stripe log", summary: monthUsd !== null ? `$${monthUsd.toFixed(2)}` : `${log.length}`, panel: <LogPanel entries={log} monthUsd={monthUsd} /> },
+    { id: "sterling", label: "Sterling", summary: `${memories.length} facts`, panel: <SterlingPanel notes={settings.notes} memories={memories} /> },
+    { id: "paychecks", label: "Paychecks", summary: lastPay ? moneyExact(lastPay) : "none yet", panel: <PaychecksPanel income={settings} paychecks={paychecks} /> },
+  ];
 
   return (
     <>
       <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
-      <main className="wrap">
-        <PageHead
-          title="Settings"
-          lede={`${d.accounts.length} accounts · Chase and Fidelity through Stripe Financial Connections · everything else is detected automatically`}
-          figs={[
-            { value: money(assets), label: "assets" },
-            { value: money(Math.abs(debts)), label: "debts" },
-          ]}
-        />
-
-        <section className={`${s.section} ${s.two}`}>
-          <div>
-            <h2 className={s.h2}>Accounts</h2>
-            <p className={s.sub}>balances as of {d.asOf} · edit to rename, set a credit limit, or fill in what Stripe can&apos;t read</p>
-            <AccountsEditor accounts={d.accounts} asOf={d.asOf} hidden={hidden} />
-            <div className={s.actions} style={{ marginTop: 28 }}>
-              <LinkAccountButton label="Link a bank through Stripe" />
-              <SyncNow accountCount={d.accounts.filter((a) => a.kind !== "other").length} monthUsd={monthUsd} />
-            </div>
-            <p className={s.hint} style={{ marginTop: 14 }}>Transactions refresh daily through Stripe for a flat $0.30 per bank per month. Balances are refreshed every morning at $0.10 per account.</p>
-          </div>
-          <div>
-            <h2 className={s.h2}>Add an account by hand</h2>
-            <p className={s.sub}>for the car loan, or anything Stripe can&apos;t reach</p>
-            <AddManualAccount />
-          </div>
-        </section>
-
-        <section className={s.section}>
-          <h2 className={s.h2}>Stripe fetch log</h2>
-          <p className={s.sub}>every balance and transaction pull from Chase and Fidelity, with the exact time it happened (Central)</p>
-          <FetchLog />
-        </section>
-
-        <section className={`${s.section} ${s.two}`}>
-          <div>
-            <h2 className={s.h2}>Income &amp; commitments</h2>
-            <p className={s.sub}>what to expect each pay day, and what is spoken for before anything else</p>
-            {settings.paycheckNetCents ? (
-              <p className={s.hint} style={{ marginBottom: 18 }}>
-                Monthly income <b className="num">{money(settings.paycheckNetCents * settings.payDays.length)}</b> · {settings.payDays.length} × {money(settings.paycheckNetCents)} on the {settings.payDays.join(" and ")}. Essentials are planned on the Spending page.
-              </p>
-            ) : null}
-            <IncomeSettings initial={settings} />
-            <LearnedContext />
-            <h2 className={s.h2} style={{ marginTop: 36 }}>Paychecks</h2>
-            <p className={s.sub}>detected from payroll deposits in checking · drives income and savings rate</p>
-            <DetectedPaychecks />
-          </div>
-          <div>
-            <h2 className={s.h2}>Morning brief</h2>
-            <p className={s.sub}>what the Grok bot reads each morning</p>
-            <p className={s.hint} style={{ marginBottom: 14 }}>The bot calls this endpoint with the brief token from the environment and gets JSON with a ready-to-send <code>text</code> field plus the numbers behind it.</p>
-            <pre className={s.code}>{`GET /api/brief
-Authorization: Bearer <BRIEF_TOKEN>
-
-→ { asOf, netWorth, changeMtd,
-    budget: { total, spent, remaining, pctUsed, dayOfMonth, daysInMonth, projected, overCategories },
-    upcoming, goalsOffTrack, anomalies, text }`}</pre>
-            <div style={{ marginTop: 22 }}>
-              <BriefPreview />
-            </div>
-          </div>
-        </section>
-
-        <section className={`${s.section} ${s.sectionTight}`}>
-          <div className={s.actions}>
-            <SignOut />
-            <span className={s.hint}>Only {process.env.ALLOWED_EMAIL ?? "the owner's address"} can sign in.</span>
-          </div>
-        </section>
-
-        <PageFoot isSample={d.isSample} />
-      </main>
+      <SettingsShell tabs={tabs} />
     </>
   );
 }
