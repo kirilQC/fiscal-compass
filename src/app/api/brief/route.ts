@@ -5,6 +5,8 @@ import { buildBrief } from "@/lib/brief";
 import { buildDashboardFromDb } from "@/lib/data-db";
 import { sampleDashboard } from "@/lib/sample";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadLedger } from "@/lib/advisor/ledger";
+import { computeInsights } from "@/lib/advisor/insights";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -22,6 +24,8 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "owner not found" }, { status: 404 });
 
   const { count } = await admin.from("accounts").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-  const dashboard = count ? await buildDashboardFromDb(admin, user.id) : sampleDashboard;
-  return NextResponse.json(buildBrief(dashboard));
+  if (!count) return NextResponse.json(buildBrief(sampleDashboard));
+  const [dashboard, ledger] = await Promise.all([buildDashboardFromDb(admin, user.id), loadLedger(admin, user.id)]);
+  // The same analysis the Advisor page leads with, for the Grok bot's morning message.
+  return NextResponse.json({ ...buildBrief(dashboard), insights: computeInsights(ledger).map(({ level, title, detail }) => ({ level, title, detail })) });
 }

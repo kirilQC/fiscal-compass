@@ -3,9 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Thread, Message } from "@/lib/threads";
 import { AdvisorMarkdown } from "./AdvisorMarkdown";
+import type { Insight } from "@/lib/advisor/insights";
 import styles from "./AdvisorChat.module.css";
 
-type Props = { initialThreads: Thread[]; prompts: string[]; brief: string | null; initialQuery?: string | null };
+type Props = { initialThreads: Thread[]; prompts: string[]; brief: string | null; initialQuery?: string | null; insights?: Insight[] };
+
+// Tool status lines arrive inside the text stream between these markers (see /api/chat).
+const STATUS_RE = /\u001e([^\u001f]*)\u001f/g;
+function splitStream(raw: string): { text: string; status: string | null } {
+  let status: string | null = null;
+  let lastEnd = 0;
+  for (const m of raw.matchAll(STATUS_RE)) { status = m[1]; lastEnd = (m.index ?? 0) + m[0].length; }
+  const text = raw.replace(STATUS_RE, "");
+  // A status stays visible only until new reply text arrives after it.
+  if (status && raw.slice(lastEnd).trim()) status = null;
+  return { text, status };
+}
+const LEVEL_LABEL: Record<Insight["level"], string> = { alert: "Needs attention", watch: "Keep an eye on", info: "Worth knowing", good: "Going well" };
 
 function relTime(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -16,14 +30,16 @@ function relTime(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function AdvisorChat({ initialThreads, prompts, brief, initialQuery = null }: Props) {
+export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insights = [] }: Props) {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
-  const [activeId, setActiveId] = useState<string | null>(initialQuery ? null : initialThreads[0]?.id ?? null);
+  // Always open on a fresh page led by the insights; past conversations are one click away.
+  const [activeId, setActiveId] = useState<string | null>(null);
   const queryFired = useRef(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bootstrapped = useRef(new Set<string>());
@@ -33,25 +49,6 @@ export function AdvisorChat({ initialThreads, prompts, brief, initialQuery = nul
     if (r.ok) setThreads((await r.json()).threads);
   }, []);
 
-  const openBrief = useCallback(
-    async (threadId: string) => {
-      if (bootstrapped.current.has(threadId)) return;
-      bootstrapped.current.add(threadId);
-      setBusy(true);
-      const tempId = `brief-${threadId}`;
-      setMessages([{ id: tempId, role: "assistant", content: brief ?? "", createdAt: new Date().toISOString() }]);
-      const r = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId, brief: true }),
-      });
-      const text = r.ok ? await r.text() : brief ?? "";
-      setMessages([{ id: tempId, role: "assistant", content: text, createdAt: new Date().toISOString() }]);
-      setBusy(false);
-    },
-    [brief],
-  );
-
   useEffect(() => {
     if (!activeId) return;
     let cancelled = false;
@@ -60,13 +57,12 @@ export function AdvisorChat({ initialThreads, prompts, brief, initialQuery = nul
       if (!r.ok || cancelled) return;
       const data = await r.json();
       if (cancelled) return;
-      if (data.messages.length === 0) await openBrief(activeId);
-      else setMessages(data.messages);
+      setMessages(data.messages);
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeId, openBrief]);
+  }, [activeId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -126,13 +122,16 @@ export function AdvisorChat({ initialThreads, prompts, brief, initialQuery = nul
         const { value, done } = await reader.read();
         if (done) break;
         acc += dec.decode(value, { stream: true });
-        setMessages((m) => m.map((x) => (x.id === asstId ? { ...x, content: acc } : x)));
+        const { text, status: st } = splitStream(acc);
+        setStatus(st);
+        setMessages((m) => m.map((x) => (x.id === asstId ? { ...x, content: text } : x)));
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong.";
       setMessages((m) => m.map((x) => (x.id === asstId ? { ...x, content: `Couldn't reach the advisor: ${msg}` } : x)));
     } finally {
       setBusy(false);
+      setStatus(null);
       refreshThreads();
       textareaRef.current?.focus();
     }
@@ -191,14 +190,35 @@ export function AdvisorChat({ initialThreads, prompts, brief, initialQuery = nul
 
         <div className={styles.messages}>
           {messages.length === 0 && !busy ? (
-            <p className={styles.empty}>Ask anything about your money. The advisor sees every account, your budget, and your goals.</p>
+            insights.length ? (
+              <section className={styles.insights} aria-label="What you need to know">
+                <h2 className={styles.insightsTitle}>What you need to know</h2>
+                <ul className={styles.insightList}>
+                  {insights.map((i) => (
+                    <li key={i.id} className={`${styles.insight} ${styles[`lv_${i.level}`]}`}>
+                      <span className={styles.level}>{LEVEL_LABEL[i.level]}</span>
+                      <strong className={styles.insightHead}>{i.title}</strong>
+                      <p className={styles.insightBody}>{i.detail}</p>
+                      <button type="button" className={styles.askBtn} onClick={() => send(i.ask)}>Ask about this</button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : (
+              <p className={styles.empty}>Ask anything about your money. The advisor can search every transaction, compare months, and check your bills and accounts.</p>
+            )
           ) : null}
           {messages.map((m) => (
             <article key={m.id} className={m.role === "user" ? styles.me : styles.ai}>
               <span className={styles.who}>{m.role === "user" ? "You" : "Advisor"}</span>
               <div className={styles.body}>
                 {m.role === "assistant" ? (
-                  m.content ? <AdvisorMarkdown text={m.content} /> : <span className={styles.thinking}>Thinking…</span>
+                  m.content ? (
+                    <>
+                      <AdvisorMarkdown text={m.content} />
+                      {busy && status && m.id === messages[messages.length - 1]?.id ? <span className={styles.thinking}>{status}…</span> : null}
+                    </>
+                  ) : <span className={styles.thinking}>{busy && m.id === messages[messages.length - 1]?.id && status ? `${status}…` : "Thinking…"}</span>
                 ) : (
                   m.content
                 )}

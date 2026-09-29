@@ -171,3 +171,19 @@
   .empty { font-size: 22px; }
   .ai .body { font-size: 17px; }
 }
+
+/* what you need to know */
+.insights { display: grid; gap: 16px; padding-bottom: 12px; }
+.insightsTitle { font-family: var(--serif); font-weight: 400; font-size: 30px; margin: 0; }
+.insightList { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+.insight { --lv: var(--ink3); position: relative; display: grid; gap: 6px; align-content: start; padding: 14px 16px 12px 18px; border-radius: 14px; background: var(--surface); border: 1px solid var(--rule); overflow: hidden; }
+.insight::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--lv); }
+.lv_alert { --lv: var(--crit); }
+.lv_watch { --lv: var(--warn); }
+.lv_info { --lv: var(--ink2); }
+.lv_good { --lv: var(--good); }
+.level { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--lv); font-weight: 500; }
+.insightHead { font-size: 15px; font-weight: 500; line-height: 1.3; color: var(--ink); }
+.insightBody { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+.askBtn { justify-self: start; margin-top: 4px; font-size: 12.5px; color: var(--accent); border-bottom: 1px solid transparent; }
+.askBtn:hover, .askBtn:focus-visible { border-bottom-color: var(--accent); outline: none; }

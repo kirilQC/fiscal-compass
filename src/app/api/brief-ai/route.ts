@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
-import { getDashboard } from "@/lib/data";
-import { generateBrief, suggestedPrompts } from "@/lib/advisor";
+import { getSession } from "@/lib/session";
+import { loadLedger } from "@/lib/advisor/ledger";
+import { briefText } from "@/lib/advisor/agent";
+import { computeInsights } from "@/lib/advisor/insights";
+
+export const maxDuration = 60;
 
 export async function GET() {
-  const d = await getDashboard();
-  const brief = await generateBrief(d);
-  return NextResponse.json({ asOf: d.asOf, brief, prompts: suggestedPrompts(d) });
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "not configured" }, { status: 503 });
+  const db = { supabase: session.supabase, userId: session.userId };
+  const ledger = await loadLedger(db.supabase, db.userId);
+  const brief = await briefText(ledger, db);
+  return NextResponse.json({ asOf: ledger.today, brief, prompts: computeInsights(ledger).slice(0, 3).map((i) => i.ask) });
 }
