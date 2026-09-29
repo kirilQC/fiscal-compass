@@ -173,7 +173,7 @@ export async function runTool(name: string, args: Args, L: Ledger, db: { supabas
     case "current_insights":
       return computeInsights(L).map((i) => ({ level: i.level, title: i.title, detail: i.detail }));
     case "remember": {
-      const fact = String(a.fact ?? "").trim().slice(0, 500);
+      const fact = String(a.fact ?? "").trim().slice(0, 500).replace(/\s*[\u2014\u2013]\s*/g, ", ");
       if (!fact) return { ok: false };
       const { data, error } = await db.supabase.from("advisor_notes").insert({ user_id: db.userId, kind: "memory", body: fact }).select("id").single();
       if (error) return { ok: false, error: error.message };

@@ -51,6 +51,7 @@ export interface Ledger {
   paychecks: { date: string; cents: number }[];
   memories: { id: string; body: string; createdAt: string }[];
   conversations: PastConversation[]; // most recent first
+  askedQuestionIds: Set<string>; // questions Sterling has already put to Kiril
 }
 
 export interface PastConversation {
@@ -68,7 +69,7 @@ const ym = (d: string) => d.slice(0, 7);
 export async function loadLedger(supabase: SupabaseClient, userId: string, now = new Date()): Promise<Ledger> {
   const today = now.toISOString().slice(0, 10);
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1)).toISOString().slice(0, 10);
-  const [txQ, acctQ, balQ, planRows, settings, payQ, memQ, conversations] = await Promise.all([
+  const [txQ, acctQ, balQ, planRows, settings, payQ, memQ, conversations, askedQ] = await Promise.all([
     supabase.from("transactions").select("id,posted_on,amount_cents,merchant,category,account_id,is_transfer,is_income,status,spend_class").eq("user_id", userId).gte("posted_on", since).order("posted_on", { ascending: false }).limit(6000),
     supabase.from("accounts").select("id,institution,name,kind,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", new Date(now.getTime() - 40 * 86400_000).toISOString().slice(0, 10)).order("as_of", { ascending: false }),
@@ -77,6 +78,7 @@ export async function loadLedger(supabase: SupabaseClient, userId: string, now =
     supabase.from("paychecks").select("pay_date,net_cents").eq("user_id", userId).gte("pay_date", since).order("pay_date", { ascending: false }),
     supabase.from("advisor_notes").select("id,body,created_at").eq("user_id", userId).eq("kind", "memory").order("created_at", { ascending: true }).limit(100),
     loadConversations(supabase, userId),
+    supabase.from("advisor_notes").select("anchor").eq("user_id", userId).eq("kind", "question").limit(500),
   ]);
 
   const latest = new Map<string, { as_of: string; balance_cents: number }>();
@@ -111,6 +113,7 @@ export async function loadLedger(supabase: SupabaseClient, userId: string, now =
     txns, spend, accounts, settings, planRows, plan, incomeCents,
     discretionaryCapCents: settings.discretionaryBudgetCents ?? defaultBudgetCents(available),
     paychecks, memories: (memQ.data ?? []).map((m) => ({ id: m.id, body: m.body, createdAt: m.created_at })), conversations,
+    askedQuestionIds: new Set((askedQ.data ?? []).map((r) => String((r.anchor as { qid?: string } | null)?.qid ?? ""))),
   };
 }
 

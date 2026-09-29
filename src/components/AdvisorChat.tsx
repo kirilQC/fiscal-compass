@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Thread, Message } from "@/lib/threads";
 import { AdvisorMarkdown } from "./AdvisorMarkdown";
+import type { Question } from "@/lib/advisor/questions";
 import { geist } from "./sterlingFont";
 import styles from "./AdvisorChat.module.css";
 
@@ -16,6 +17,7 @@ type Props = {
   brief?: string | null;
   initialQuery?: string | null;
   memories?: Memory[];
+  questions?: Question[];
   compact?: boolean; // the overview's pop-up dock: no side panes
   initialThreadId?: string | null; // /advisor?t=… opens that conversation
 };
@@ -100,7 +102,7 @@ function Answer({ content, liveSteps, working }: { content: string; liveSteps?: 
   );
 }
 
-export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memories: initialMemories = [], compact = false, initialThreadId = null }: Props) {
+export function AdvisorChat({ initialThreads, prompts, initialQuery = null, questions: initialQuestions = [], compact = false, initialThreadId = null }: Props) {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [activeId, setActiveId] = useState<string | null>(initialThreadId);
   const queryFired = useRef(false);
@@ -109,7 +111,7 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memo
   const [busy, setBusy] = useState(false);
   const [liveSteps, setLiveSteps] = useState<string[]>([]);
   const [listOpen, setListOpen] = useState(false);
-  const [memories, setMemories] = useState<Memory[]>(initialMemories);
+  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const bottomRef = useRef<HTMLDivElement>(null);
   // A conversation created by send() has nothing saved yet; loading it would wipe the message on screen.
   const justCreated = useRef<string | null>(null);
@@ -118,10 +120,6 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memo
   const refreshThreads = useCallback(async () => {
     const r = await fetch("/api/threads");
     if (r.ok) setThreads((await r.json()).threads);
-  }, []);
-  const refreshMemories = useCallback(async () => {
-    const r = await fetch("/api/memory");
-    if (r.ok) setMemories((await r.json()).memories ?? []);
   }, []);
 
   useEffect(() => {
@@ -143,6 +141,17 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memo
     setActiveId(null);
     setMessages([]);
     setListOpen(false);
+    textareaRef.current?.focus();
+  }
+
+  // Answering one of Sterling's questions opens a conversation that starts with him asking it.
+  async function answer(q: Question) {
+    const r = await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: q.id }) });
+    setQuestions((cur) => cur.filter((x) => x.id !== q.id));
+    if (!r.ok) return;
+    const { threadId } = await r.json();
+    await refreshThreads();
+    setActiveId(threadId);
     textareaRef.current?.focus();
   }
 
@@ -195,7 +204,6 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memo
       setBusy(false);
       setLiveSteps([]);
       refreshThreads();
-      refreshMemories();
       textareaRef.current?.focus();
     }
   }
@@ -228,13 +236,6 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memo
             ))}
             {threads.length === 0 ? <li className={styles.convEmpty}>No conversations yet.</li> : null}
           </ul>
-          <div className={styles.knows}>
-            <h4>What I know about you</h4>
-            {memories.length ? (
-              <div className={styles.mems}>{memories.map((m) => <div key={m.id}>{m.body}</div>)}</div>
-            ) : <p className={styles.railEmpty}>Tell me what a charge is, a goal, or a life change, and I&apos;ll remember it.</p>}
-            <a className={styles.manage} href="/settings">Manage in Settings</a>
-          </div>
         </aside>
       ) : null}
 
@@ -254,6 +255,18 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memo
               <div className={styles.starters}>
                 {prompts.slice(0, 4).map((p) => <button key={p} type="button" onClick={() => send(p)}>{p}</button>)}
               </div>
+              {questions.length ? (
+                <div className={styles.qs}>
+                  <h2>I have a few questions for you</h2>
+                  {questions.map((q) => (
+                    <div key={q.id} className={styles.q}>
+                      <span className={styles.qAbout}>{q.about}</span>
+                      <p>{q.text}</p>
+                      <button type="button" onClick={() => answer(q)}>Answer</button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {messages.map((m) =>

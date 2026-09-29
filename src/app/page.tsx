@@ -8,18 +8,23 @@ import { getSession } from "@/lib/session";
 import { loadLedger } from "@/lib/advisor/ledger";
 import { computeInsights, type Insight } from "@/lib/advisor/insights";
 import { Flags } from "@/components/overview/Flags";
+import { Questions } from "@/components/overview/Questions";
+import { computeQuestions, type Question } from "@/lib/advisor/questions";
 
 export default async function OverviewPage() {
   const d = await getDashboard();
   if (d.needsSetup) return <><TopBar asOf={d.asOf} isSample={false} /><Onboarding /></>;
   const session = d.isSample ? null : await getSession();
-  const insights: Insight[] = session ? await loadLedger(session.supabase, session.userId).then(computeInsights).catch(() => []) : [];
+  const ledger = session ? await loadLedger(session.supabase, session.userId).catch(() => null) : null;
+  const insights: Insight[] = ledger ? computeInsights(ledger) : [];
+  const questions: Question[] = ledger ? computeQuestions(ledger) : [];
   return (
     <>
       <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
       <main className="wrap">
         <NetWorthPanel netWorthCents={d.netWorthCents} daily={d.netWorthDaily} accounts={d.accounts} />
         <Flags insights={insights} />
+        <Questions questions={questions} />
         <AccountsList accounts={d.accounts} />
         <CreditSpread d={d} />
         <SpendingSpread d={d} />

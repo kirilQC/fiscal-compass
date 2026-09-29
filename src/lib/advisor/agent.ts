@@ -56,7 +56,7 @@ You are Sterling, Kiril's personal financial advisor inside Fiscal Compass, his 
 How to answer:
 - Lead with the verdict in one sentence: over or under, by how much, compared with what (his plan, his cap, last month, or his 3-month usual).
 - Then the why, with specifics: merchants, dates, amounts. Name the two or three things that explain most of it rather than listing everything.
-- Only when there is a specific decision or step that would actually change his outcome, end with it on its own line starting with "Do this:". Many answers (explanations, lookups, status checks where nothing needs doing) should simply end; never invent an action to fill the slot. No menus of options unless he asks.
+- Actions: add a closing line starting with "Do this:" only when he asked what to do, or when something urgent is about the exact thing he asked about. Never tack on advice about a different topic (a question about net worth does not get a credit card to-do). Most answers should end without one.
 - Use your tools whenever the question needs detail beyond the briefing: search transactions, break spending down, compare periods, check recurring charges, essentials or accounts. Never guess a number you could look up. Two or three tool calls is usually enough; don't narrate that you're calling them.
 - Every figure you state must come from the briefing or a tool result. Do the arithmetic and show the key step when it helps ("$1,298 − $875 = $423 over").
 - Compare against his own history, not generic advice. Point out anything surprising you notice along the way, even if he didn't ask about it, in one short line at the end.
@@ -64,11 +64,36 @@ How to answer:
 - Memory: you keep one continuous memory across every conversation. Save lasting facts on your own initiative, even when he mentions them in passing and doesn't ask you to remember: what a merchant or charge is, who a person is, a life event, a plan or goal, a preference about how you answer, a correction to something you assumed. Call remember with the fact and what it means for his money, e.g. "Kiril is getting married; Kings Crossing is the wedding venue. Expect venue, catering and vendor charges in the months before the wedding." Update rather than duplicate: if a saved fact changes, forget the old one and remember the new one.
 - Past conversations: the briefing lists your recent conversations. When he refers to something from before ("like I said", "that charge we talked about"), or an earlier chat probably holds context you need, look it up with search_past_conversations instead of asking him to repeat it. Never ask him for something he has already told you in the learned context or a past conversation.
 - Asking: if the data shows a sizable or recurring charge you can't identify and nothing in the learned context explains it, end with one short question asking what it is. Never more than one question per answer.
+- Punctuation: never use em dashes or en dashes. Use commas, periods, colons or parentheses instead, and "to" for ranges ($200 to $300).
+- When a conversation opens with a question you asked him and he answers it, save what you learned with remember, thank him in a few words, and say briefly how it changes the picture. Keep that reply short.
 - Style: short paragraphs, plain words, bold only the one or two key numbers. Bullet lists only for three or more parallel items. No headers, no emojis, no filler openers like "Great question". Call him "you".
 - Investments: general guidance only, with at most one short line saying so.
 
 Briefing:
 ${briefing(L)}`;
+}
+
+// Kiril never wants em or en dashes. The model is told, and this makes sure: dashes become commas or "to",
+// and the minus sign becomes a plain hyphen. Whitespace at the end of a chunk is held back so a dash split
+// across two chunks still reads right.
+export class DashFilter {
+  private held = "";
+  push(chunk: string): string {
+    const text = this.held + chunk;
+    const cut = text.search(/\s+$/);
+    const ready = cut >= 0 ? text.slice(0, cut) : text;
+    this.held = cut >= 0 ? text.slice(cut) : "";
+    return clean(ready);
+  }
+  flush(): string { const t = clean(this.held); this.held = ""; return t; }
+}
+function clean(s: string) {
+  return s
+    .replace(/(\$?\d[\d,.]*[kKmM%]?)\s*[\u2013\u2014]\s*(\$?\d)/g, "$1 to $2")
+    .replace(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?)\s*[\u2013\u2014]\s*((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec))/g, "$1 to $2")
+    .replace(/\s*[\u2014\u2013]\s*/g, ", ")
+    .replace(/\u2212/g, "-")
+    .replace(/,\s*,/g, ",");
 }
 
 export async function* runAdvisor(L: Ledger, history: Turn[], db: { supabase: SupabaseClient; userId: string }, extraInstruction?: string): AsyncGenerator<AdvisorEvent> {
@@ -79,7 +104,8 @@ export async function* runAdvisor(L: Ledger, history: Turn[], db: { supabase: Su
   let previous: string | undefined;
   let pending: string[] = [];
   let written = "";
-  const flush = function* (): Generator<AdvisorEvent> { for (const c of pending) yield { type: "text", delta: c }; pending = []; };
+  const dash = new DashFilter();
+  const flush = function* (): Generator<AdvisorEvent> { const t = dash.flush(); if (t) yield { type: "text", delta: t }; for (const c of pending) yield { type: "text", delta: c }; pending = []; };
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const calls: { call_id: string; name: string; arguments: string }[] = [];
     const stream = await ai.responses.create({
@@ -88,7 +114,8 @@ export async function* runAdvisor(L: Ledger, history: Turn[], db: { supabase: Su
     });
     for await (const ev of stream) {
       if (ev.type === "response.output_text.delta") {
-        yield { type: "text", delta: ev.delta };
+        const t = dash.push(ev.delta);
+        if (t) yield { type: "text", delta: t };
         written += ev.delta;
         if (pending.length && /\S[\s\S]*\n\n/.test(written)) yield* flush();
       }
@@ -112,12 +139,13 @@ export async function* runAdvisor(L: Ledger, history: Turn[], db: { supabase: Su
       let result: unknown;
       try { result = await runTool(c.name, args, L, db); } catch (e) { result = { error: e instanceof Error ? e.message : String(e) }; }
       const r = result as { ok?: boolean; fact?: string };
-      if (c.name === "remember" && r.ok) yield { type: "status", text: `${REMEMBERED}${String(args.fact ?? "").trim()}` };
+      if (c.name === "remember" && r.ok) yield { type: "status", text: `${REMEMBERED}${clean(String(args.fact ?? "").trim())}` };
       if (c.name === "forget" && r.ok && r.fact) yield { type: "status", text: `${FORGOT}${r.fact}` };
       outputs.push({ type: "function_call_output", call_id: c.call_id, output: JSON.stringify(result).slice(0, 60000) });
     }
     input = outputs;
   }
+  yield* flush();
   yield { type: "text", delta: "\n\n(I stopped after several lookups. Ask me to keep going if you need more.)" };
 }
 
@@ -140,7 +168,7 @@ function chartSpec(a: Record<string, unknown>): ChartSpec | null {
   });
   if (!labels.length || !series.length || series.some((s) => s.values.length !== labels.length || s.values.some((v) => !Number.isFinite(v)))) return null;
   const ref = a.reference as { label?: unknown; value?: unknown } | undefined;
-  return { type, title: String(a.title ?? "").slice(0, 90), unit: a.unit === "count" || a.unit === "pct" ? a.unit : "usd", labels, series,
+  return { type, title: clean(String(a.title ?? "")).slice(0, 90), unit: a.unit === "count" || a.unit === "pct" ? a.unit : "usd", labels, series,
     ...(ref && Number.isFinite(Number(ref.value)) ? { reference: { label: String(ref.label ?? ""), value: Number(ref.value) } } : {}) };
 }
 

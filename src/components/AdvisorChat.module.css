@@ -105,8 +105,6 @@
 .manage:hover { text-decoration: underline; }
 .railEmpty { margin: 0; font-size: 12.5px; color: var(--st-ink3); line-height: 1.5; }
 
-.knows { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--st-rule); }
-.knows h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--st-ink3); font-weight: 500; }
 @media (max-width: 1100px) { .page:not(.compact) { grid-template-columns: 230px minmax(0, 1fr); } }
 @media (max-width: 760px) {
   .page:not(.compact) { grid-template-columns: minmax(0, 1fr); height: auto; min-height: calc(100vh - 78px); }
@@ -128,3 +126,11 @@
 .memForgot { background: var(--st-panel); border-color: var(--st-rule); }
 .memForgot b, .memForgot .memIcon { color: var(--st-ink3); }
 .memForgot .memIcon { background: var(--st-panel2); }
+
+/* Sterling's questions for Kiril */
+.qs { width: 100%; display: grid; gap: 10px; margin-top: 22px; }
+.qs h2 { margin: 0 0 2px; font-size: 16px; font-weight: 600; }
+.q { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; padding: 14px 16px; border-radius: 12px; background: var(--st-panel); border: 1px solid var(--st-rule); border-left: 3px solid var(--st-acc); }
+.qAbout { grid-column: 1; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--st-acc); font-weight: 600; }
+.q p { grid-column: 1; margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--st-ink); }
+.q button { grid-column: 2; grid-row: 1 / span 2; background: var(--st-acc) !important; color: var(--st-acc-ink) !important; border-radius: 10px; padding: 8px 14px; font-weight: 600; font-size: 13px; }
