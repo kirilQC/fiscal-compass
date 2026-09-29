@@ -9,8 +9,8 @@ import { runTool, toolStatus, TOOLS } from "./tools";
 // The advisor: a model with a standing briefing on Kiril's money and tools to dig into the ledger itself.
 // gpt-5.5 at low reasoning effort answers in about a second and is sharp enough to chain tool calls.
 
-export const ADVISOR_MODEL = process.env.OPENAI_MODEL || "gpt-5.5";
-const EFFORT = (process.env.OPENAI_REASONING_EFFORT as "low" | "medium" | "high" | undefined) || "low";
+export const ADVISOR_MODEL = process.env.ADVISOR_MODEL || "gpt-5.5";
+const EFFORT = (process.env.ADVISOR_REASONING_EFFORT as "low" | "medium" | "high" | undefined) || "low";
 const MAX_ROUNDS = 6;
 
 export type AdvisorEvent = { type: "text"; delta: string } | { type: "status"; text: string };
