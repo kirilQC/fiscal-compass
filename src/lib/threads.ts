@@ -27,6 +27,7 @@ interface Store {
   messages(threadId: string, limit?: number): Promise<Message[]>;
   add(threadId: string, role: ChatTurn["role"], content: string): Promise<Message>;
   titleIfNew(threadId: string, fromText: string): Promise<void>;
+  setTitle(threadId: string, title: string): Promise<void>;
 }
 
 const memory: Store = {
@@ -60,6 +61,10 @@ const memory: Store = {
   async titleIfNew(threadId, fromText) {
     const t = memThreads.get(threadId);
     if (t && t.title === NEW_TITLE) t.title = titleFrom(fromText);
+  },
+  async setTitle(threadId, title) {
+    const t = memThreads.get(threadId);
+    if (t) t.title = title;
   },
 };
 
@@ -111,6 +116,9 @@ function supabaseStore(supabase: SupabaseClient, userId: string): Store {
     },
     async titleIfNew(threadId, fromText) {
       await supabase.from("chat_threads").update({ title: titleFrom(fromText) }).eq("id", threadId).eq("title", NEW_TITLE);
+    },
+    async setTitle(threadId, title) {
+      await supabase.from("chat_threads").update({ title }).eq("id", threadId).eq("user_id", userId);
     },
   };
 }

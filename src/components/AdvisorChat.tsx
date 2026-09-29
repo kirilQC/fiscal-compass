@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Thread, Message } from "@/lib/threads";
 import { AdvisorMarkdown } from "./AdvisorMarkdown";
 import type { Question } from "@/lib/advisor/questions";
+import { QuestionCards } from "./QuestionCards";
 import { geist } from "./sterlingFont";
 import styles from "./AdvisorChat.module.css";
 
@@ -111,7 +112,7 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, ques
   const [busy, setBusy] = useState(false);
   const [liveSteps, setLiveSteps] = useState<string[]>([]);
   const [listOpen, setListOpen] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
+  const questions = initialQuestions;
   const bottomRef = useRef<HTMLDivElement>(null);
   // A conversation created by send() has nothing saved yet; loading it would wipe the message on screen.
   const justCreated = useRef<string | null>(null);
@@ -141,17 +142,6 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, ques
     setActiveId(null);
     setMessages([]);
     setListOpen(false);
-    textareaRef.current?.focus();
-  }
-
-  // Answering one of Sterling's questions opens a conversation that starts with him asking it.
-  async function answer(q: Question) {
-    const r = await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: q.id }) });
-    setQuestions((cur) => cur.filter((x) => x.id !== q.id));
-    if (!r.ok) return;
-    const { threadId } = await r.json();
-    await refreshThreads();
-    setActiveId(threadId);
     textareaRef.current?.focus();
   }
 
@@ -258,13 +248,7 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, ques
               {questions.length ? (
                 <div className={styles.qs}>
                   <h2>I have a few questions for you</h2>
-                  {questions.map((q) => (
-                    <div key={q.id} className={styles.q}>
-                      <span className={styles.qAbout}>{q.about}</span>
-                      <p>{q.text}</p>
-                      <button type="button" onClick={() => answer(q)}>Answer</button>
-                    </div>
-                  ))}
+                  <QuestionCards questions={questions} />
                 </div>
               ) : null}
             </div>

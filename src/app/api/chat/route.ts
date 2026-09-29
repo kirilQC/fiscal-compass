@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { getDashboard } from "@/lib/data";
 import { getSession } from "@/lib/session";
@@ -6,6 +6,7 @@ import { getStore } from "@/lib/threads";
 import { streamReply } from "@/lib/advisor";
 import { loadLedger } from "@/lib/advisor/ledger";
 import { briefText, runAdvisor, type AdvisorEvent } from "@/lib/advisor/agent";
+import { summarizeTitle } from "@/lib/advisor/title";
 
 export const maxDuration = 120;
 
@@ -50,6 +51,15 @@ export async function POST(req: Request) {
     ? runAdvisor(ledger, history, db)
     : (async function* () { for await (const delta of streamReply(await getDashboard(), history)) yield { type: "text" as const, delta }; })();
 
+  // After the first exchange, a short AI summary replaces the placeholder title; it runs once the reply is sent.
+  const firstExchange = !prior.some((m) => m.role === "user");
+  let finished: (reply: string) => void = () => {};
+  const replyDone = new Promise<string>((resolve) => { finished = resolve; });
+  if (firstExchange) after(async () => {
+    const title = await summarizeTitle(message, await replyDone);
+    if (title) await store.setTitle(threadId, title);
+  });
+
   const encoder = new TextEncoder();
   let full = "";
   const steps: string[] = [];
@@ -72,6 +82,7 @@ export async function POST(req: Request) {
         await saved;
         if (full.trim()) await store.add(threadId, "assistant", steps.length ? `${STEPS_MARK}${JSON.stringify(steps)}${STEPS_MARK}${full}` : full);
         await store.titleIfNew(threadId, message);
+        finished(full);
         controller.close();
       }
     },
