@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import type { Account } from "@/lib/types";
 import { AccountsEditor } from "@/components/sections/AccountsEditor";
+import { LearnedContext } from "@/components/sections/LearnedContext";
 import { FetchLog } from "@/components/sections/FetchLog";
 import s from "@/components/sections/sections.module.css";
 
@@ -88,6 +89,7 @@ export default async function SettingsPage() {
               </p>
             ) : null}
             <IncomeSettings initial={settings} />
+            <LearnedContext />
             <h2 className={s.h2} style={{ marginTop: 36 }}>Paychecks</h2>
             <p className={s.sub}>detected from payroll deposits in checking · drives income and savings rate</p>
             <DetectedPaychecks />

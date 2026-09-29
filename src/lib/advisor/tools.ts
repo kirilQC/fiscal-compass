@@ -51,9 +51,21 @@ export const TOOLS: FunctionTool[] = [
   { type: "function", name: "accounts_overview", strict: false, description: "Every linked account with its latest balance, credit limits and utilization, and loan terms; plus paychecks received in the last 3 months.", parameters: { type: "object", properties: {} } },
   { type: "function", name: "current_insights", strict: false, description: "The automatic analysis of this month (pace, discretionary cap, essentials over estimate, merchant spikes, new places, recurring changes, cash and credit). Already summarized in your instructions; call only to refresh.", parameters: { type: "object", properties: {} } },
   {
+    type: "function", name: "show_chart", strict: false,
+    description: "Draw a chart inside your answer. Use for trends over months or weeks (line or bar), comparisons between merchants, categories or periods (bar, optionally two series), and shares of a total (donut). Values are dollars unless unit says otherwise; take them from tool results.",
+    parameters: { type: "object", required: ["type", "title", "labels", "series"], properties: {
+      type: { type: "string", enum: ["bar", "line", "donut"] },
+      title: str("Short chart title, e.g. 'Dining by month'."),
+      unit: { type: ["string", "null"], enum: ["usd", "count", "pct", null] },
+      labels: { type: "array", items: { type: "string" }, description: "One label per point or bar, e.g. months 'Apr'…'Sep' or merchant names." },
+      series: { type: "array", description: "One series for bar/donut; up to three for line or grouped bars.", items: { type: "object", properties: { name: { type: "string" }, values: { type: "array", items: { type: "number" } } }, required: ["name", "values"] } },
+      reference: { type: ["object", "null"], description: "Optional horizontal line, e.g. a cap or estimate.", properties: { label: { type: "string" }, value: { type: "number" } } },
+    } },
+  },
+  {
     type: "function", name: "remember", strict: false,
-    description: "Save a lasting fact Kiril tells you about his money or preferences (e.g. 'Kings Crossing is the wedding venue', 'I'm saving for a house by 2028'). Use when he states something that should shape future advice. Do not save transient numbers.",
-    parameters: { type: "object", required: ["fact"], properties: { fact: str("The fact, one sentence, written about Kiril in third person.") } },
+    description: "Save lasting context Kiril tells you, with what it means for his money (e.g. 'Kiril is getting married; Kings Crossing is the wedding venue. Expect wedding-related charges.'). Use when he states a fact about a merchant, a person, a life event, a goal or a preference. Do not save transient numbers.",
+    parameters: { type: "object", required: ["fact"], properties: { fact: str("One or two sentences about Kiril in third person, including the implication for his finances.") } },
   },
   { type: "function", name: "forget", strict: false, description: "Remove a saved fact that Kiril says is wrong or no longer true.", parameters: { type: "object", required: ["fact_id"], properties: { fact_id: str("The id shown next to the fact in your instructions.") } } },
 ];
@@ -151,6 +163,7 @@ export function toolStatus(name: string, args: Args): string {
     case "accounts_overview": return "Looking at your accounts";
     case "current_insights": return "Re-running this month's analysis";
     case "remember": return "Saving that for next time";
+    case "show_chart": return "Drawing a chart";
     case "forget": return "Forgetting that";
     default: return "Working";
   }

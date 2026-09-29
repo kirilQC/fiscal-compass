@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { AdvisorChart } from "./AdvisorChart";
+import type { ChartSpec } from "@/lib/advisor/agent";
 
 function inline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -17,8 +19,30 @@ function inline(text: string, keyBase: string): ReactNode[] {
   return out;
 }
 
+// Charts arrive as ```chart fenced JSON inside the reply (see show_chart in the advisor).
+const CHART_RE = /```chart\n([\s\S]*?)\n```/g;
+
+function parseChart(json: string): ChartSpec | null {
+  try { return JSON.parse(json) as ChartSpec; } catch { return null; } // unreadable chart: skip it
+}
+
 export function AdvisorMarkdown({ text }: { text: string }) {
-  const blocks = text.replace(/\r\n/g, "\n").split(/\n{2,}/);
+  const parts: ReactNode[] = [];
+  let last = 0, k = 0;
+  const src = text.replace(/\r\n/g, "\n");
+  for (const m of src.matchAll(CHART_RE)) {
+    if ((m.index ?? 0) > last) parts.push(<Prose key={`p${k++}`} text={src.slice(last, m.index)} />);
+    const spec = parseChart(m[1]);
+    if (spec) parts.push(<AdvisorChart key={`c${k++}`} spec={spec} />);
+    last = (m.index ?? 0) + m[0].length;
+  }
+  const rest = src.slice(last).replace(/```chart[\s\S]*$/, ""); // a chart still streaming in
+  if (rest.trim()) parts.push(<Prose key={`p${k++}`} text={rest} />);
+  return <>{parts}</>;
+}
+
+function Prose({ text }: { text: string }) {
+  const blocks = text.split(/\n{2,}/);
   return (
     <>
       {blocks.map((block, bi) => {
