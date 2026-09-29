@@ -26,7 +26,7 @@ export default async function AdvisorPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <TopBar asOf={d.asOf} isSample={d.isSample} loadError={d.loadError} />
-      <AdvisorChat initialThreads={threads} prompts={prompts} brief={d.brief} initialQuery={q?.trim() || null} insights={insights} memories={memories} initialThreadId={t && threads.some((x) => x.id === t) ? t : null} />
+      <AdvisorChat initialThreads={threads} prompts={prompts} brief={d.brief} initialQuery={q?.trim() || null} memories={memories} initialThreadId={t && threads.some((x) => x.id === t) ? t : null} />
     </>
   );
 }

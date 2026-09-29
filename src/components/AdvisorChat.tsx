@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Thread, Message } from "@/lib/threads";
-import type { Insight } from "@/lib/advisor/insights";
 import { AdvisorMarkdown } from "./AdvisorMarkdown";
 import { geist } from "./sterlingFont";
 import styles from "./AdvisorChat.module.css";
 
-// Sterling's page ("Briefing room"): conversations on the left, the answer in the middle, and a right rail
-// that always shows what's flagged today and what Sterling has learned.
+// Sterling's page ("Briefing room"): conversations and what Sterling has learned on the left, the answer
+// across the rest. Today's flags live on the Overview page.
 
 type Memory = { id: string; body: string; created_at: string };
 type Props = {
@@ -16,7 +15,6 @@ type Props = {
   prompts: string[];
   brief?: string | null;
   initialQuery?: string | null;
-  insights?: Insight[];
   memories?: Memory[];
   compact?: boolean; // the overview's pop-up dock: no side panes
   initialThreadId?: string | null; // /advisor?t=… opens that conversation
@@ -52,7 +50,6 @@ function splitAnswer(text: string) {
   return { verdict, body, action };
 }
 
-const LEVEL: Record<Insight["level"], string> = { alert: "var(--st-crit)", watch: "var(--st-warn)", info: "var(--st-ink3)", good: "var(--st-good)" };
 
 function relTime(iso: string) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -91,7 +88,7 @@ function Answer({ content, liveSteps, working }: { content: string; liveSteps?: 
   );
 }
 
-export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insights = [], memories: initialMemories = [], compact = false, initialThreadId = null }: Props) {
+export function AdvisorChat({ initialThreads, prompts, initialQuery = null, memories: initialMemories = [], compact = false, initialThreadId = null }: Props) {
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [activeId, setActiveId] = useState<string | null>(initialThreadId);
   const queryFired = useRef(false);
@@ -102,6 +99,8 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insi
   const [listOpen, setListOpen] = useState(false);
   const [memories, setMemories] = useState<Memory[]>(initialMemories);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // A conversation created by send() has nothing saved yet; loading it would wipe the message on screen.
+  const justCreated = useRef<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshThreads = useCallback(async () => {
@@ -115,6 +114,7 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insi
 
   useEffect(() => {
     if (!activeId) return;
+    if (justCreated.current === activeId) { justCreated.current = null; return; }
     let cancelled = false;
     (async () => {
       const r = await fetch(`/api/threads/${activeId}`);
@@ -149,6 +149,7 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insi
       if (!r.ok) return;
       const { thread } = await r.json();
       threadId = thread.id;
+      justCreated.current = thread.id;
       setThreads((t) => [thread, ...t]);
       setActiveId(thread.id);
     }
@@ -215,6 +216,13 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insi
             ))}
             {threads.length === 0 ? <li className={styles.convEmpty}>No conversations yet.</li> : null}
           </ul>
+          <div className={styles.knows}>
+            <h4>What I know about you</h4>
+            {memories.length ? (
+              <div className={styles.mems}>{memories.map((m) => <div key={m.id}>{m.body}</div>)}</div>
+            ) : <p className={styles.railEmpty}>Tell me what a charge is, a goal, or a life change, and I&apos;ll remember it.</p>}
+            <a className={styles.manage} href="/settings">Manage in Settings</a>
+          </div>
         </aside>
       ) : null}
 
@@ -264,30 +272,6 @@ export function AdvisorChat({ initialThreads, prompts, initialQuery = null, insi
         </form>
       </section>
 
-      {!compact ? (
-        <aside className={styles.rail}>
-          <div>
-            <h4>Flagged today</h4>
-            {insights.length ? (
-              <div className={styles.flags}>
-                {insights.map((i) => (
-                  <button key={i.id} type="button" className={styles.flag} onClick={() => send(i.ask)} title="Ask Sterling about this">
-                    <i style={{ background: LEVEL[i.level] }} />
-                    <span>{i.title}<small>{i.detail}</small></span>
-                  </button>
-                ))}
-              </div>
-            ) : <p className={styles.railEmpty}>Nothing flagged right now.</p>}
-          </div>
-          <div>
-            <h4>What I know about you</h4>
-            {memories.length ? (
-              <div className={styles.mems}>{memories.map((m) => <div key={m.id}>{m.body}</div>)}</div>
-            ) : <p className={styles.railEmpty}>Tell me what a charge is, a goal, or a life change, and I&apos;ll remember it.</p>}
-            <a className={styles.manage} href="/settings">Manage in Settings</a>
-          </div>
-        </aside>
-      ) : null}
     </main>
   );
 }

@@ -1,4 +1,4 @@
-.figure { margin: 14px 0 16px; padding: 16px 18px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--rule); max-width: 620px; }
+.figure { margin: 14px 0 16px; padding: 16px 18px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--rule); max-width: 820px; }
 .title { font-family: var(--sans); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); font-weight: 500; margin-bottom: 10px; }
 .svg { width: 100%; height: auto; display: block; overflow: visible; }
 .grid { stroke: var(--rule); stroke-width: 1; }
