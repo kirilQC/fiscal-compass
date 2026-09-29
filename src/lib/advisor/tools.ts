@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FunctionTool } from "openai/resources/responses/responses";
 import { computeInsights, monthShift, recurringCharges } from "./insights";
+import { buildCached } from "../cache";
 import type { Ledger, Txn } from "./ledger";
 
 // Functions the advisor can call to look things up itself instead of guessing from a summary.
@@ -49,6 +50,16 @@ export const TOOLS: FunctionTool[] = [
   { type: "function", name: "recurring_charges", strict: false, description: "Subscriptions and other charges that repeat monthly: typical amount, usual day, whether this month's charge came, changed or is late, and which are new.", parameters: { type: "object", properties: {} } },
   { type: "function", name: "essentials_status", strict: false, description: "This month's essential expenses plan: each bill's estimate, what was actually caught, paid date, and status (paid, due, overdue, varies).", parameters: { type: "object", properties: {} } },
   { type: "function", name: "accounts_overview", strict: false, description: "Every linked account with its latest balance, credit limits and utilization, and loan terms; plus paychecks received in the last 3 months.", parameters: { type: "object", properties: {} } },
+  {
+    type: "function", name: "net_worth_history", strict: false,
+    description: "Net worth over time (assets minus debts), its change this month and this year, and what it is made of today: investments, cash, credit card debt, loans. Use for any question about net worth, wealth, or overall financial position, and chart it.",
+    parameters: { type: "object", properties: { range: { type: ["string", "null"], enum: ["3m", "6m", "1y", null], description: "How far back. Default 6m." } } },
+  },
+  {
+    type: "function", name: "search_past_conversations", strict: false,
+    description: "Search everything Kiril and you have said in earlier conversations. Use when he refers to something discussed before, or when an earlier chat likely holds context you need, so he never has to repeat himself. With no query, returns the most recent conversations.",
+    parameters: { type: "object", properties: { query: { type: ["string", "null"], description: "Words to look for, e.g. 'wedding', 'car loan', 'Kings Crossing'." }, limit: { type: ["integer", "null"] } } },
+  },
   { type: "function", name: "current_insights", strict: false, description: "The automatic analysis of this month (pace, discretionary cap, essentials over estimate, merchant spikes, new places, recurring changes, cash and credit). Already summarized in your instructions; call only to refresh.", parameters: { type: "object", properties: {} } },
   {
     type: "function", name: "show_chart", strict: false,
@@ -132,6 +143,33 @@ export async function runTool(name: string, args: Args, L: Ledger, db: { supabas
     case "accounts_overview":
       return { accounts: L.accounts.map((x) => ({ name: `${x.institution} ${x.name}`, kind: x.kind, balance: x.balanceCents == null ? null : d(x.balanceCents), as_of: x.balanceAsOf, credit_limit: x.creditLimitCents ? d(x.creditLimitCents) : undefined, utilization_pct: x.creditLimitCents && x.balanceCents != null ? Math.round((Math.abs(x.balanceCents) / x.creditLimitCents) * 100) : undefined, apr: x.loanApr ?? undefined, monthly_payment: x.loanPaymentCents ? d(x.loanPaymentCents) : undefined, payments_left: x.loanPaymentsLeft ?? undefined })),
         paychecks: L.paychecks.filter((p) => p.date >= `${monthShift(L.month, -2)}-01`).map((p) => ({ date: p.date, amount: d(p.cents) })) };
+    case "net_worth_history": {
+      const dash = await buildCached(db.userId);
+      const months = a.range === "3m" ? 3 : a.range === "1y" ? 12 : 6;
+      const since = `${monthShift(L.month, -months)}-01`;
+      const daily = dash.netWorthDaily.filter((p) => p.date >= since);
+      const step = Math.max(1, Math.round(daily.length / 26)); // about two dozen points is enough to chart
+      const points = daily.filter((_, i) => i % step === 0 || i === daily.length - 1).map((p) => ({ date: p.date, net_worth: d(p.valueCents) }));
+      const sum = (kind: string, sign = 1) => d(dash.accounts.filter((x) => x.kind === kind).reduce((s2, x) => s2 + sign * x.balanceCents, 0));
+      return {
+        net_worth_now: d(dash.netWorthCents), change_this_month: d(dash.changeMtdCents), change_this_year: d(dash.changeYtdCents),
+        month_end_values: dash.netWorth12m.filter((p) => p.date >= since).map((p) => ({ month: p.date.slice(0, 7), net_worth: d(p.valueCents) })),
+        series: points,
+        made_of: { investments: d(dash.investmentTotalCents), checking_and_savings: d(sum("checking") * 100 + sum("savings") * 100), credit_cards: sum("credit"), loans: sum("loan") },
+      };
+    }
+    case "search_past_conversations": {
+      const q = typeof args.query === "string" ? args.query.trim() : "";
+      if (!q) return L.conversations.slice(0, Number(a.limit) || 10).map((c) => ({ title: c.title, date: c.updatedAt.slice(0, 10), asked: c.asked, answered: c.answered }));
+      const { data: hits } = await db.supabase.from("chat_messages").select("thread_id,role,content,created_at,chat_threads!inner(title,user_id)").eq("chat_threads.user_id", db.userId).ilike("content", `%${q.replace(/[%_]/g, "")}%`).order("created_at", { ascending: false }).limit(Math.min(Number(a.limit) || 12, 30));
+      type Hit = { role: string; content: string; created_at: string; chat_threads: { title: string } | { title: string }[] };
+      return ((hits ?? []) as unknown as Hit[]).map((h) => {
+        const text = h.content.replace(/^\u001d[^\u001d]*\u001d/, "").replace(/```chart[\s\S]*?```/g, "[chart]");
+        const at = Math.max(0, text.toLowerCase().indexOf(q.toLowerCase()) - 160);
+        const title = Array.isArray(h.chat_threads) ? h.chat_threads[0]?.title : h.chat_threads.title;
+        return { conversation: title, date: h.created_at.slice(0, 10), who: h.role === "user" ? "Kiril" : "you", excerpt: text.slice(at, at + 420).replace(/\s+/g, " ") };
+      });
+    }
     case "current_insights":
       return computeInsights(L).map((i) => ({ level: i.level, title: i.title, detail: i.detail }));
     case "remember": {
@@ -143,8 +181,10 @@ export async function runTool(name: string, args: Args, L: Ledger, db: { supabas
       return { ok: true, id: data.id };
     }
     case "forget": {
+      const gone = L.memories.find((m) => m.id === String(a.fact_id));
       const { error } = await db.supabase.from("advisor_notes").delete().eq("user_id", db.userId).eq("kind", "memory").eq("id", String(a.fact_id));
-      return { ok: !error, error: error?.message };
+      if (!error) L.memories = L.memories.filter((m) => m.id !== String(a.fact_id));
+      return { ok: !error, error: error?.message, fact: gone?.body };
     }
     default:
       return { error: `unknown tool ${name}` };
@@ -162,6 +202,8 @@ export function toolStatus(name: string, args: Args): string {
     case "essentials_status": return "Checking your essential bills";
     case "accounts_overview": return "Looking at your accounts";
     case "current_insights": return "Re-running this month's analysis";
+    case "net_worth_history": return "Pulling your net worth history";
+    case "search_past_conversations": return typeof args.query === "string" && args.query ? `Checking our past conversations about "${args.query}"` : "Checking our past conversations";
     case "remember": return "Saving that for next time";
     case "show_chart": return "Drawing a chart";
     case "forget": return "Forgetting that";

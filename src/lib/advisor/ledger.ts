@@ -50,14 +50,25 @@ export interface Ledger {
   discretionaryCapCents: number;
   paychecks: { date: string; cents: number }[];
   memories: { id: string; body: string; createdAt: string }[];
+  conversations: PastConversation[]; // most recent first
 }
+
+export interface PastConversation {
+  id: string;
+  title: string;
+  updatedAt: string;
+  asked: string; // his first question
+  answered: string; // the opening of Sterling's first reply
+}
+
+const clean = (s: string) => s.replace(/^\u001d[^\u001d]*\u001d/, "").replace(/```chart[\s\S]*?```/g, "[chart]").replace(/\s+/g, " ").trim();
 
 const ym = (d: string) => d.slice(0, 7);
 
 export async function loadLedger(supabase: SupabaseClient, userId: string, now = new Date()): Promise<Ledger> {
   const today = now.toISOString().slice(0, 10);
   const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1)).toISOString().slice(0, 10);
-  const [txQ, acctQ, balQ, planRows, settings, payQ, memQ] = await Promise.all([
+  const [txQ, acctQ, balQ, planRows, settings, payQ, memQ, conversations] = await Promise.all([
     supabase.from("transactions").select("id,posted_on,amount_cents,merchant,category,account_id,is_transfer,is_income,status,spend_class").eq("user_id", userId).gte("posted_on", since).order("posted_on", { ascending: false }).limit(6000),
     supabase.from("accounts").select("id,institution,name,kind,credit_limit_cents,loan_apr,loan_payment_cents,loan_payments_left").eq("user_id", userId).eq("is_active", true),
     supabase.from("balances_daily").select("account_id,as_of,balance_cents").eq("user_id", userId).gte("as_of", new Date(now.getTime() - 40 * 86400_000).toISOString().slice(0, 10)).order("as_of", { ascending: false }),
@@ -65,6 +76,7 @@ export async function loadLedger(supabase: SupabaseClient, userId: string, now =
     getUserSettings(supabase, userId),
     supabase.from("paychecks").select("pay_date,net_cents").eq("user_id", userId).gte("pay_date", since).order("pay_date", { ascending: false }),
     supabase.from("advisor_notes").select("id,body,created_at").eq("user_id", userId).eq("kind", "memory").order("created_at", { ascending: true }).limit(100),
+    loadConversations(supabase, userId),
   ]);
 
   const latest = new Map<string, { as_of: string; balance_cents: number }>();
@@ -98,6 +110,20 @@ export async function loadLedger(supabase: SupabaseClient, userId: string, now =
     today, month: ym(today), dayOfMonth: now.getUTCDate(), daysInMonth: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate(),
     txns, spend, accounts, settings, planRows, plan, incomeCents,
     discretionaryCapCents: settings.discretionaryBudgetCents ?? defaultBudgetCents(available),
-    paychecks, memories: (memQ.data ?? []).map((m) => ({ id: m.id, body: m.body, createdAt: m.created_at })),
+    paychecks, memories: (memQ.data ?? []).map((m) => ({ id: m.id, body: m.body, createdAt: m.created_at })), conversations,
   };
+}
+
+// The last dozen conversations, each reduced to its opening question and the start of the answer, so Sterling
+// can pick up threads from earlier sessions without being told twice.
+async function loadConversations(supabase: SupabaseClient, userId: string): Promise<PastConversation[]> {
+  const { data: threads } = await supabase.from("chat_threads").select("id,title,updated_at").eq("user_id", userId).order("updated_at", { ascending: false }).limit(12);
+  if (!threads?.length) return [];
+  const { data: msgs } = await supabase.from("chat_messages").select("thread_id,role,content,created_at").in("thread_id", threads.map((t) => t.id)).order("created_at", { ascending: true }).limit(400);
+  return threads.map((t) => {
+    const mine = (msgs ?? []).filter((m) => m.thread_id === t.id);
+    const q = mine.find((m) => m.role === "user");
+    const a = mine.find((m) => m.role === "assistant" && m.created_at >= (q?.created_at ?? ""));
+    return { id: t.id, title: t.title, updatedAt: t.updated_at, asked: clean(q?.content ?? "").slice(0, 160), answered: clean(a?.content ?? "").slice(0, 240) };
+  }).filter((c) => c.asked);
 }

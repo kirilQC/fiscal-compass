@@ -31,6 +31,7 @@ export async function POST(req: Request) {
   const db = live ? { supabase: session.supabase, userId: session.userId } : null;
   const [thread, ledger] = await Promise.all([store.get(threadId), db ? loadLedger(db.supabase, db.userId) : Promise.resolve(null)]);
   if (!thread) return NextResponse.json({ error: "thread not found" }, { status: 404 });
+  if (ledger) ledger.conversations = ledger.conversations.filter((c) => c.id !== threadId);
 
   if (brief) {
     const text = ledger && db ? await briefText(ledger, db) : "Link an account and I'll brief you on it every morning.";

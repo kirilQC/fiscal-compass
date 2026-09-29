@@ -65,16 +65,19 @@ function Avatar({ size = 34 }: { size?: number }) {
   return <img src="/sterling.jpg" alt="Sterling" width={size} height={size} className={styles.avatar} style={{ width: size, height: size }} />;
 }
 
+const REMEMBERED = "Remembered: ", FORGOT = "Forgot: ";
+
 function Answer({ content, liveSteps, working }: { content: string; liveSteps?: string[]; working?: boolean }) {
   const saved = parseSaved(content);
-  const steps = liveSteps ?? saved.steps;
+  const all = liveSteps ?? saved.steps;
+  const memoryNotes = all.filter((s) => s.startsWith(REMEMBERED) || s.startsWith(FORGOT));
+  const steps = all.filter((s) => !memoryNotes.includes(s));
   const { verdict, body, action } = splitAnswer(saved.text);
-  const remembered = steps.some((s) => s.startsWith("Saving that"));
   return (
     <div className={styles.answer}>
       {steps.length ? (
         <div className={styles.trace}>
-          {steps.filter((s) => !s.startsWith("Saving that")).map((s, i, arr) => (
+          {steps.map((s, i, arr) => (
             <span key={s} className={working && i === arr.length - 1 && !saved.text.trim() ? styles.stepLive : undefined}>{s}</span>
           ))}
         </div>
@@ -83,7 +86,16 @@ function Answer({ content, liveSteps, working }: { content: string; liveSteps?: 
       {verdict ? <div className={styles.verdict}><AdvisorMarkdown text={verdict} /></div> : null}
       {body ? <div className={styles.body}><AdvisorMarkdown text={body} /></div> : null}
       {action ? <div className={styles.action}><strong>Do this</strong><span><AdvisorMarkdown text={action} /></span></div> : null}
-      {remembered ? <div className={styles.saved}>Saved to what I know about you</div> : null}
+      {memoryNotes.map((n) => {
+        const forgot = n.startsWith(FORGOT);
+        return (
+          <div key={n} className={`${styles.memNote} ${forgot ? styles.memForgot : ""}`}>
+            <span className={styles.memIcon} aria-hidden>{forgot ? "−" : "+"}</span>
+            <span><b>{forgot ? "Sterling removed from memory" : "Sterling stored in memory"}</b>{n.slice(forgot ? FORGOT.length : REMEMBERED.length)}</span>
+            <a href="/settings">View</a>
+          </div>
+        );
+      })}
     </div>
   );
 }

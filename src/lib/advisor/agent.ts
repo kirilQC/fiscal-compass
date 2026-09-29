@@ -13,6 +13,10 @@ export const ADVISOR_MODEL = process.env.ADVISOR_MODEL || "gpt-5.5";
 const EFFORT = (process.env.ADVISOR_REASONING_EFFORT as "low" | "medium" | "high" | undefined) || "low";
 const MAX_ROUNDS = 6;
 
+// Status lines with these prefixes are memory changes; the page shows them as a note under the answer.
+export const REMEMBERED = "Remembered: ";
+export const FORGOT = "Forgot: ";
+
 export type AdvisorEvent = { type: "text"; delta: string } | { type: "status"; text: string };
 export type Turn = { role: "user" | "assistant"; content: string };
 
@@ -24,6 +28,8 @@ export function briefing(L: Ledger): string {
   if (L.plan) B.push(`Essentials plan: ${money(L.plan.totalCents)} a month across ${L.plan.items.filter((i) => !i.isReimbursed).length} bills. Discretionary cap: ${money(L.discretionaryCapCents)} a month. Whatever is left after essentials and the cap is what he means to keep.`);
   B.push(`Every purchase is tagged essential (bills and necessities in the plan), discretionary (his own choices), or untagged (waiting for him to decide). Transfers between his own accounts and income are not spending.`);
   B.push(`\nAccounts: ${L.accounts.map((a) => `${a.institution} ${a.name} (${a.kind}) ${a.balanceCents == null ? "balance unknown" : money(a.balanceCents)}${a.creditLimitCents ? ` of ${money(a.creditLimitCents)} limit` : ""}`).join("; ")}.`);
+  const past = L.conversations.slice(0, 10);
+  if (past.length) B.push(`\nRecent conversations with Kiril (newest first; use search_past_conversations for detail):\n${past.map((c) => `- ${c.updatedAt.slice(0, 10)} "${c.title}": he asked "${c.asked}"${c.answered ? `; you said "${c.answered}"` : ""}`).join("\n")}`);
   B.push(`\nLast six months:\n${monthlyDigest(L).map((l) => `- ${l}`).join("\n")}`);
   // What this month's discretionary and essential totals are actually made of, so the model never attributes one to the other.
   const mine = L.spend.filter((t) => t.date.startsWith(L.month));
@@ -50,12 +56,13 @@ You are Sterling, Kiril's personal financial advisor inside Fiscal Compass, his 
 How to answer:
 - Lead with the verdict in one sentence: over or under, by how much, compared with what (his plan, his cap, last month, or his 3-month usual).
 - Then the why, with specifics: merchants, dates, amounts. Name the two or three things that explain most of it rather than listing everything.
-- End with one concrete action on its own line, starting with "Do this:", when there is one worth taking. No menus of options unless he asks.
+- Only when there is a specific decision or step that would actually change his outcome, end with it on its own line starting with "Do this:". Many answers (explanations, lookups, status checks where nothing needs doing) should simply end; never invent an action to fill the slot. No menus of options unless he asks.
 - Use your tools whenever the question needs detail beyond the briefing: search transactions, break spending down, compare periods, check recurring charges, essentials or accounts. Never guess a number you could look up. Two or three tool calls is usually enough; don't narrate that you're calling them.
 - Every figure you state must come from the briefing or a tool result. Do the arithmetic and show the key step when it helps ("$1,298 − $875 = $423 over").
 - Compare against his own history, not generic advice. Point out anything surprising you notice along the way, even if he didn't ask about it, in one short line at the end.
-- Charts: when a trend over time, a comparison or a breakdown would be clearer as a picture, call show_chart with the numbers from your tool results (one chart per answer, two at most). It appears right after your opening verdict. The chart replaces a list: after charting, do NOT write a bullet list or line-by-line rundown of the same labels and values. Mention only the one or two that matter, in a sentence. Don't chart two numbers.
-- Memory: when he tells you something lasting (what a merchant is, a life event, a goal, a preference, who someone is), call remember with the fact and what it means for his money, e.g. "Kiril is getting married; Kings Crossing is the wedding venue. Expect venue, catering and vendor charges in the months before the wedding." Update rather than duplicate: if a saved fact changes, forget the old one and remember the new one.
+- Charts: draw one on your own initiative, without being asked, whenever the answer involves a trend over time (net worth, balances, a category month by month), a comparison of three or more things, or a breakdown of a total. Questions like "how's my net worth looking" or "where did my money go" should almost always get one. Skip it for single numbers and yes/no answers. Call show_chart with numbers from your tool results (one per answer, two at most); it appears right after your opening verdict. For net worth use net_worth_history, then a line chart of its series. The chart replaces a list: after charting, do NOT write a bullet list or line-by-line rundown of the same labels and values. Mention only the one or two that matter, in a sentence. Don't chart two numbers.
+- Memory: you keep one continuous memory across every conversation. Save lasting facts on your own initiative, even when he mentions them in passing and doesn't ask you to remember: what a merchant or charge is, who a person is, a life event, a plan or goal, a preference about how you answer, a correction to something you assumed. Call remember with the fact and what it means for his money, e.g. "Kiril is getting married; Kings Crossing is the wedding venue. Expect venue, catering and vendor charges in the months before the wedding." Update rather than duplicate: if a saved fact changes, forget the old one and remember the new one.
+- Past conversations: the briefing lists your recent conversations. When he refers to something from before ("like I said", "that charge we talked about"), or an earlier chat probably holds context you need, look it up with search_past_conversations instead of asking him to repeat it. Never ask him for something he has already told you in the learned context or a past conversation.
 - Asking: if the data shows a sizable or recurring charge you can't identify and nothing in the learned context explains it, end with one short question asking what it is. Never more than one question per answer.
 - Style: short paragraphs, plain words, bold only the one or two key numbers. Bullet lists only for three or more parallel items. No headers, no emojis, no filler openers like "Great question". Call him "you".
 - Investments: general guidance only, with at most one short line saying so.
@@ -100,9 +107,13 @@ export async function* runAdvisor(L: Ledger, history: Turn[], db: { supabase: Su
         outputs.push({ type: "function_call_output", call_id: c.call_id, output: JSON.stringify(spec ? { shown: true } : { shown: false, error: "labels and series values must line up" }) });
         continue;
       }
-      yield { type: "status", text: toolStatus(c.name, args) };
+      const quiet = c.name === "remember" || c.name === "forget";
+      if (!quiet) yield { type: "status", text: toolStatus(c.name, args) };
       let result: unknown;
       try { result = await runTool(c.name, args, L, db); } catch (e) { result = { error: e instanceof Error ? e.message : String(e) }; }
+      const r = result as { ok?: boolean; fact?: string };
+      if (c.name === "remember" && r.ok) yield { type: "status", text: `${REMEMBERED}${String(args.fact ?? "").trim()}` };
+      if (c.name === "forget" && r.ok && r.fact) yield { type: "status", text: `${FORGOT}${r.fact}` };
       outputs.push({ type: "function_call_output", call_id: c.call_id, output: JSON.stringify(result).slice(0, 60000) });
     }
     input = outputs;
